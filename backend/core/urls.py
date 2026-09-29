@@ -8,5 +8,6 @@ urlpatterns = [
     path("api/documents/", include("apps.documents.urls")),
     path("api/search/", include("apps.search.urls")),
     path("api/query/", include("apps.query.urls")),
+    path("api/analytics/benchmarks/", include("apps.analytics.urls")),
     path("api/benchmarks/", include("apps.analytics.urls")),
 ]

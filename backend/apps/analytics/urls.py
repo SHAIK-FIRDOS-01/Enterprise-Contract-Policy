@@ -1,9 +1,9 @@
-"""Analytics URLs."""
-from django.urls import URLPattern
-from typing import List
+"""Analytics and Benchmarking URLs."""
+from django.urls import path
+from apps.analytics.views import BenchmarksSummaryView
 
 app_name = "analytics"
 
-urlpatterns: List[URLPattern] = [
-    # Endpoints to be wired in TICKET-02
+urlpatterns = [
+    path("summary/", BenchmarksSummaryView.as_view(), name="benchmarks-summary"),
 ]
