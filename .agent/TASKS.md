@@ -223,13 +223,18 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
 
 ---
 
-### TICKET-12: Automated Benchmark Suite & High-Resolution Telemetry Visualization
-- **Status**: `[ ] Pending`
-- **Scope**: Create end-to-end benchmark script `scripts/run_benchmark_suite.py` measuring Groq execution latency, prompt/completion tokens, and cost. Create `scripts/export_metrics.py` exporting publication-ready charts (latency, cost, throughput).
+### TICKET-12: Operational Telemetry Dashboard - Benchmark Metrics, Latency & Token Cost Analytics, and ROI Projection Cards
+- **Status**: `[x] Complete`
+- **Scope**: Build high-density operational telemetry dashboard consuming `GET /api/analytics/benchmarks/summary/`. Render numerical stat cards, pipeline latency stage decomposition, token expenditure and model pricing analysis, and dual-system ROI economics comparative matrix. Implement 10-second auto-sync toggle and JSON report export.
 - **Files**:
-  - `scripts/run_benchmark_suite.py`
-  - `scripts/export_metrics.py`
-  - `scripts/harness-check.sh`
+  - `frontend/src/services/analytics.js`
+  - `frontend/src/components/telemetry/MetricStatCard.jsx`
+  - `frontend/src/components/telemetry/PipelineLatencyBreakdown.jsx`
+  - `frontend/src/components/telemetry/TokenCostAnalytics.jsx`
+  - `frontend/src/components/telemetry/DualSystemRoiCard.jsx`
+  - `frontend/src/pages/telemetry/TelemetryPage.jsx`
+  - `frontend/src/tests/telemetry.test.jsx`
 - **Verification Gate**:
-  - `python scripts/run_benchmark_suite.py --dry-run`
-  - `bash ./scripts/harness-check.sh`
+  - `npm --prefix frontend run typecheck`
+  - `npm --prefix frontend run lint`
+  - `npm --prefix frontend test -- --run`

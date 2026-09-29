@@ -1,155 +1,211 @@
-import React from 'react';
-import { Activity, Cpu, DollarSign, Clock, CheckCircle2, AlertTriangle, ShieldAlert } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  Activity,
+  Cpu,
+  DollarSign,
+  RefreshCw,
+  Download,
+  ShieldCheck,
+} from 'lucide-react';
+import { fetchBenchmarkSummary, calculateRoiEconomics } from '../../services/analytics';
+import api from '../../services/api';
+import MetricStatCard from '../../components/telemetry/MetricStatCard';
+import PipelineLatencyBreakdown from '../../components/telemetry/PipelineLatencyBreakdown';
+import TokenCostAnalytics from '../../components/telemetry/TokenCostAnalytics';
+import DualSystemRoiCard from '../../components/telemetry/DualSystemRoiCard';
 
 export default function TelemetryPage() {
-  // Static institutional baseline metrics for initial scaffolding
-  const metrics = {
-    totalQueries: 142,
-    totalTokens: 284520,
-    estimatedCostUsd: 0.1707,
-    avgLatencyMs: 382,
-    p95LatencyMs: 840,
-    verificationDistribution: {
-      verified: 128,
-      caution: 11,
-      rejected: 3
+  const [benchmarkData, setBenchmarkData] = useState(null);
+  const [documentCount, setDocumentCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const autoRefreshTimerRef = useRef(null);
+
+  const loadMetrics = useCallback(async () => {
+    try {
+      const [summaryRes, docsRes] = await Promise.all([
+        fetchBenchmarkSummary(),
+        api.get('/api/documents/').catch(() => ({ data: [] })),
+      ]);
+
+      setBenchmarkData(summaryRes);
+      const docs = Array.isArray(docsRes.data)
+        ? docsRes.data
+        : docsRes.data.results || [];
+      setDocumentCount(docs.length);
+      setIsLoading(false);
+    } catch {
+      setIsLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    loadMetrics();
+  }, [loadMetrics]);
+
+  // Handle auto-refresh interval (10s)
+  useEffect(() => {
+    if (autoRefresh) {
+      autoRefreshTimerRef.current = setInterval(() => {
+        loadMetrics();
+      }, 10000);
+    } else {
+      if (autoRefreshTimerRef.current) clearInterval(autoRefreshTimerRef.current);
+    }
+
+    return () => {
+      if (autoRefreshTimerRef.current) clearInterval(autoRefreshTimerRef.current);
+    };
+  }, [autoRefresh, loadMetrics]);
+
+  // Export Telemetry as JSON Report
+  const handleExportJson = () => {
+    if (!benchmarkData) return;
+
+    const report = {
+      report_type: 'ENTERPRISE_CONTRACT_COPILOT_TELEMETRY_BENCHMARK',
+      generated_at: new Date().toISOString(),
+      document_corpus_count: documentCount,
+      summary: benchmarkData,
+    };
+
+    const blob = new Blob([JSON.stringify(report, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `telemetry-benchmark-report-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
+  const totalOps = benchmarkData?.total_operations || 0;
+  const totals = benchmarkData?.totals || {};
+  const health = benchmarkData?.system_health || {};
+  const operationsBreakdown = benchmarkData?.operations_breakdown || {};
+
+  const totalTokens = Number(totals.total_tokens || 0);
+  const totalCostUsd = Number(totals.total_cost_usd || 0.0);
+  const successRatePct = Math.round((health.overall_success_rate ?? 1.0) * 100);
+
+  const llmOps = operationsBreakdown.LLM_SYNTHESIS?.count || 0;
+
+  const economics = calculateRoiEconomics({
+    totalDocuments: Math.max(documentCount, 1),
+    totalQueries: Math.max(llmOps, totalOps > 0 ? totalOps : 1),
+    totalCostUsd: totalCostUsd,
+  });
+
   return (
-    <div className="h-full flex flex-col bg-zinc-950 text-zinc-100 font-sans overflow-y-auto">
+    <div className="h-full flex flex-col bg-zinc-950 text-zinc-100 font-sans overflow-y-auto select-none">
       {/* Telemetry Header */}
       <div className="px-6 py-4 border-b border-zinc-800 bg-zinc-900/40 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
             <Activity className="w-4 h-4 text-emerald-400" />
             <h1 className="text-sm font-mono font-semibold tracking-wider text-zinc-100 uppercase">
-              Operational Telemetry & Audit Benchmark
+              Operational Telemetry & Performance Benchmark
             </h1>
           </div>
           <p className="text-xs text-zinc-400 font-mono mt-0.5">
-            AuditBenchmarkLog aggregate performance, token consumption, and citation verification ledger.
+            AuditBenchmarkLog aggregate performance, token consumption, and citation verification ledger
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-mono border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            SAMPLING: 100% INGESTION
-          </span>
+
+        <div className="flex items-center gap-2.5 font-mono text-xs">
+          {/* Auto Refresh Toggle */}
+          <button
+            type="button"
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            className={`px-2.5 py-1 rounded border text-[11px] flex items-center gap-1.5 transition-colors ${
+              autoRefresh
+                ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-300'
+                : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                autoRefresh ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-600'
+              }`}
+            />
+            <span>AUTO-SYNC (10s)</span>
+          </button>
+
+          {/* Manual Refresh */}
+          <button
+            type="button"
+            onClick={loadMetrics}
+            className="p-1.5 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 text-zinc-300 transition-colors"
+            title="Refresh Benchmarks"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
+
+          {/* Export JSON Report */}
+          <button
+            type="button"
+            onClick={handleExportJson}
+            className="h-8 px-3 rounded bg-zinc-100 hover:bg-zinc-200 text-zinc-900 font-semibold text-xs flex items-center gap-1.5 transition-colors shadow"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>EXPORT REPORT</span>
+          </button>
         </div>
       </div>
 
+      {/* Main Content Area */}
       <div className="p-6 space-y-6">
-        {/* Metric Summary Cards */}
+        {/* Metric Summary Cards Grid */}
         <div className="grid grid-cols-4 gap-4">
-          <div className="p-4 rounded border border-zinc-800 bg-zinc-900/40">
-            <div className="flex items-center justify-between text-xs font-mono text-zinc-400 mb-2">
-              <span>TOTAL INVOCATIONS</span>
-              <Activity className="w-3.5 h-3.5 text-zinc-500" />
-            </div>
-            <div className="text-2xl font-mono font-bold text-zinc-100 tabular-nums">
-              {metrics.totalQueries}
-            </div>
-            <div className="text-[11px] font-mono text-zinc-500 mt-1">
-              Hybrid RRF + Groq Synthesis
-            </div>
-          </div>
+          <MetricStatCard
+            label="PIPELINE INVOCATIONS"
+            value={totalOps.toLocaleString()}
+            subtext={`${health.successful_operations || 0} succeeded / ${health.failed_operations || 0} failed`}
+            indicatorColor="emerald"
+            icon={Activity}
+          />
 
-          <div className="p-4 rounded border border-zinc-800 bg-zinc-900/40">
-            <div className="flex items-center justify-between text-xs font-mono text-zinc-400 mb-2">
-              <span>TOKEN EXPENDITURE</span>
-              <Cpu className="w-3.5 h-3.5 text-zinc-500" />
-            </div>
-            <div className="text-2xl font-mono font-bold text-zinc-100 tabular-nums">
-              {metrics.totalTokens.toLocaleString()}
-            </div>
-            <div className="text-[11px] font-mono text-zinc-500 mt-1">
-              Prompt & Completion Tokens
-            </div>
-          </div>
+          <MetricStatCard
+            label="TOKEN EXPENDITURE"
+            value={totalTokens.toLocaleString()}
+            subtext="Groq LPUs + Local 384-dim CPU"
+            indicatorColor="cyan"
+            icon={Cpu}
+          />
 
-          <div className="p-4 rounded border border-zinc-800 bg-zinc-900/40">
-            <div className="flex items-center justify-between text-xs font-mono text-zinc-400 mb-2">
-              <span>ESTIMATED RUN COST</span>
-              <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
-            </div>
-            <div className="text-2xl font-mono font-bold text-emerald-400 tabular-nums">
-              ${metrics.estimatedCostUsd.toFixed(4)}
-            </div>
-            <div className="text-[11px] font-mono text-zinc-500 mt-1">
-              $0.0006 / 1k tokens benchmark
-            </div>
-          </div>
+          <MetricStatCard
+            label="ESTIMATED RUN COST"
+            value={`$${totalCostUsd.toFixed(5)}`}
+            subtext="$0.0006 / 1k tokens benchmark"
+            indicatorColor="emerald"
+            icon={DollarSign}
+          />
 
-          <div className="p-4 rounded border border-zinc-800 bg-zinc-900/40">
-            <div className="flex items-center justify-between text-xs font-mono text-zinc-400 mb-2">
-              <span>MEDIAN LATENCY</span>
-              <Clock className="w-3.5 h-3.5 text-zinc-500" />
-            </div>
-            <div className="text-2xl font-mono font-bold text-zinc-100 tabular-nums">
-              {metrics.avgLatencyMs}<span className="text-xs text-zinc-500 font-normal">ms</span>
-            </div>
-            <div className="text-[11px] font-mono text-zinc-500 mt-1">
-              p95: {metrics.p95LatencyMs}ms (Retrieval + LLM)
-            </div>
-          </div>
+          <MetricStatCard
+            label="HEALTH & CITATION GATE"
+            value={`${successRatePct}%`}
+            subtext="Zero-Hallucination Threshold"
+            indicatorColor={successRatePct >= 95 ? 'emerald' : 'amber'}
+            icon={ShieldCheck}
+          />
         </div>
 
-        {/* Verification Accuracy Distribution Card */}
-        <div className="border border-zinc-800 rounded bg-zinc-900/40 p-4">
-          <h2 className="text-xs font-mono font-semibold uppercase text-zinc-300 tracking-wider mb-3">
-            Citation Confidence Distribution
-          </h2>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="p-3 rounded border border-emerald-500/20 bg-emerald-950/20 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <div>
-                  <div className="text-xs font-mono font-semibold text-emerald-300 uppercase">VERIFIED (&gt;=0.85)</div>
-                  <div className="text-[10px] font-mono text-emerald-500">Coordinate Lexical + Embedding Match</div>
-                </div>
-              </div>
-              <span className="text-xl font-mono font-bold text-emerald-400 tabular-nums">
-                {metrics.verificationDistribution.verified}
-              </span>
-            </div>
+        {/* Pipeline Stage Latency Decomposition */}
+        <PipelineLatencyBreakdown operationsBreakdown={operationsBreakdown} />
 
-            <div className="p-3 rounded border border-amber-500/20 bg-amber-950/20 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-400" />
-                <div>
-                  <div className="text-xs font-mono font-semibold text-amber-300 uppercase">CAUTION (0.70-0.84)</div>
-                  <div className="text-[10px] font-mono text-amber-500">Partial Lexical Grounding</div>
-                </div>
-              </div>
-              <span className="text-xl font-mono font-bold text-amber-400 tabular-nums">
-                {metrics.verificationDistribution.caution}
-              </span>
-            </div>
+        {/* Token Expenditure & Model Analytics */}
+        <TokenCostAnalytics
+          totals={totals}
+          operationsBreakdown={operationsBreakdown}
+        />
 
-            <div className="p-3 rounded border border-rose-500/20 bg-rose-950/20 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ShieldAlert className="w-4 h-4 text-rose-400" />
-                <div>
-                  <div className="text-xs font-mono font-semibold text-rose-300 uppercase">REJECTED (&lt;0.70)</div>
-                  <div className="text-[10px] font-mono text-rose-500">Hallucination Threshold Exceeded</div>
-                </div>
-              </div>
-              <span className="text-xl font-mono font-bold text-rose-400 tabular-nums">
-                {metrics.verificationDistribution.rejected}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Institutional Invariant Notice */}
-        <div className="p-3 rounded border border-zinc-800 bg-zinc-900/30 text-xs font-mono text-zinc-400 flex items-start gap-3">
-          <div className="w-1.5 h-1.5 rounded-full bg-zinc-500 mt-1.5"></div>
-          <div>
-            <span className="text-zinc-300 font-semibold uppercase">Zero-Token Header Invariant: </span>
-            All telemetry metrics are computed server-side via <code className="text-zinc-300">track_telemetry()</code> and persisted to PostgreSQL. Client requests utilize authenticated HttpOnly cookie sessions exclusively.
-          </div>
-        </div>
+        {/* Dual-System Comparative ROI Economics */}
+        <DualSystemRoiCard
+          economics={economics}
+        />
       </div>
     </div>
   );
