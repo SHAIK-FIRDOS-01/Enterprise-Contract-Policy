@@ -13,7 +13,7 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
 | **TICKET-01** | `[x] Complete` | Core Infrastructure | Scaffolding, Docker Compose (pgvector + Redis 7), Python (`groq`, `sentence-transformers`) & Node dependencies |
 | **TICKET-02** | `[x] Complete` | `core` & `analytics` | Django settings, modular URL routing, `AuditBenchmarkLog` model & telemetry tests |
 | **TICKET-03** | `[x] Complete` | `authentication` | Custom User model, SimpleJWT HttpOnly cookie rotation, auth tests |
-| **TICKET-04** | `[ ] Pending` | `documents` | Document & DocumentChunk models, pgvector VectorField(384), HNSW & GIN indexes |
+| **TICKET-04** | `[x] Complete` | `documents` | Document & DocumentChunk models, pgvector VectorField(384), HNSW & GIN indexes |
 | **TICKET-05** | `[ ] Pending` | `documents` | PyMuPDF (fitz) bounding box extraction engine & mock PDF unit tests |
 | **TICKET-06** | `[ ] Pending` | `documents` & Celery | Celery async worker, ingestion task, local embedding generation, Groq clause extraction & telemetry |
 | **TICKET-07** | `[ ] Pending` | `search` | Hybrid Search service (Dense pgvector + tsvector FTS fused via RRF $k=60$) & tests |
@@ -80,7 +80,7 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
 ---
 
 ### TICKET-04: Documents Data Layer & pgvector VectorField Schema
-- **Status**: `[ ] Pending`
+- **Status**: `[x] Complete`
 - **Scope**: Implement `Document` and `DocumentChunk` models in `apps/documents`. Integrate `pgvector.django.VectorField(dimensions=384)` and `django.contrib.postgres.search.SearchVectorField`. Add HNSW index (`vector_cosine_ops`) and GIN index for full-text search. Generate initial Django migrations and verify bidirectional migration reversibility.
 - **Files**:
   - `backend/apps/documents/models.py`
