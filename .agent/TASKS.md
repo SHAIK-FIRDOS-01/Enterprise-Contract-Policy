@@ -125,19 +125,21 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
 
 ---
 
-### TICKET-08: apps/query Groq SSE Streaming Endpoint with Citation Attachment
-- **Status**: `[ ] Pending`
-- **Scope**: Implement `POST /api/query/stream/` returning `StreamingHttpResponse(content_type="text/event-stream")`. Retrieve relevant chunks using hybrid search, assemble legal prompt with system guardrails, stream generated tokens via Groq API (`llama-3.3-70b-versatile`), inject JSON citation payloads (`chunk_id`, `page_number`, `bounding_box`), and log telemetry metrics in `AuditBenchmarkLog`.
+### TICKET-07: apps/query Setup - Groq LLM Client, Coordinate Citation Synthesis Engine, and SSE Streaming Endpoint
+- **Status**: `[x] Complete`
+- **Scope**: Implement `apps/query` services: `GroqSynthesisService` for prompt assembly, Groq LLM streaming, token metrics, and `CitationEngine` for `[Ref:N]` coordinate bounding box extraction. Implement `POST /api/query/stream/` endpoint with Server-Sent Events (`metadata`, `delta`, `telemetry`, `done`) and `LLM_SYNTHESIS` telemetry logging.
 - **Files**:
-  - `backend/apps/query/services/streamer.py`
-  - `backend/apps/query/services/prompt_builder.py`
+  - `backend/apps/query/services/synthesis.py`
+  - `backend/apps/query/services/citation.py`
+  - `backend/apps/query/serializers.py`
   - `backend/apps/query/views.py`
   - `backend/apps/query/urls.py`
-  - `tests/backend/test_query_stream.py`
+  - `tests/backend/test_ticket_07_query.py`
 - **Verification Gate**:
-  - `pytest tests/backend/test_query_stream.py -q --tb=short`
+  - `pytest tests/backend/test_ticket_07_query.py -q --tb=short`
   - `flake8 backend`
   - `mypy backend`
+
 
 ---
 

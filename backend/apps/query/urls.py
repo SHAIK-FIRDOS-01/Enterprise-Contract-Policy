@@ -1,9 +1,9 @@
 """Query URLs."""
-from django.urls import URLPattern
-from typing import List
+from django.urls import path
+from apps.query.views import StreamingQueryView
 
 app_name = "query"
 
-urlpatterns: List[URLPattern] = [
-    # Endpoints to be wired in TICKET-08
+urlpatterns = [
+    path("stream/", StreamingQueryView.as_view(), name="query_stream"),
 ]
