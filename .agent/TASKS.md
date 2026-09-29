@@ -205,15 +205,20 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
 ---
 
 ### TICKET-11: Real-Time SSE Streaming Chat & Interactive Citation Deep-Linking
-- **Status**: `[ ] Pending`
-- **Scope**: Implement real-time Copilot chat pane consuming `POST /api/query/stream/` via `EventSource` or `fetch` stream reader. Render streaming Markdown response with interactive citation pills `[Ref: 1]`. Clicking a citation badge dispatches an event to the PDF viewer to scroll directly to the cited page and pulse-highlight the bounding box.
+- **Status**: `[x] Complete`
+- **Scope**: Implement real-time Copilot chat pane consuming `POST /api/query/stream/` via SSE `fetch` stream reader with cookie credentials. Render streaming synthesis response with interactive citation pills `[Ref: 1]`, telemetry benchmark footer, session query history, and bidirectional synchronization with the PDF viewer canvas.
 - **Files**:
-  - `frontend/src/components/Chat/ChatContainer.tsx`
-  - `frontend/src/components/Chat/MessageList.tsx`
-  - `frontend/src/components/Chat/CitationBadge.tsx`
-  - `frontend/src/hooks/useSSEStream.ts`
+  - `frontend/src/services/streaming.js`
+  - `frontend/src/components/workspace/CitationBadge.jsx`
+  - `frontend/src/components/workspace/AuditQueryInput.jsx`
+  - `frontend/src/components/workspace/SynthesisView.jsx`
+  - `frontend/src/components/workspace/CitationInspector.jsx`
+  - `frontend/src/components/workspace/AuditAuditTrail.jsx`
+  - `frontend/src/pages/workspace/WorkspacePage.jsx`
+  - `frontend/src/tests/workspace.test.jsx`
 - **Verification Gate**:
   - `npm --prefix frontend run typecheck`
+  - `npm --prefix frontend run lint`
   - `npm --prefix frontend test -- --run`
 
 ---
