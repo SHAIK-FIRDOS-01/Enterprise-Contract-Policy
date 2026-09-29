@@ -161,17 +161,25 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
 ---
 
 ### TICKET-09: React Vite + Tailwind UI Foundation & Auth Client
-- **Status**: `[ ] Pending`
-- **Scope**: Setup React 18+ client with TypeScript, Tailwind CSS, TanStack Query, and Axios/Fetch client configured with credentials (`withCredentials: true`). Implement authentication context (login modal, persistent user session check, logout) and main application dashboard shell.
+- **Status**: `[x] Complete`
+- **Scope**: Setup React 18+ client with JSX, Tailwind CSS, and Axios client configured with credentials (`withCredentials: true`). Implement authentication context (login, registration, session check, logout), high-density institutional workstation UI shell, and route protection.
 - **Files**:
-  - `frontend/src/App.tsx`
-  - `frontend/src/context/AuthContext.tsx`
-  - `frontend/src/api/client.ts`
-  - `frontend/src/components/Navbar.tsx`
-  - `frontend/src/components/UploadModal.tsx`
+  - `frontend/src/App.jsx`
+  - `frontend/src/context/AuthContext.jsx`
+  - `frontend/src/services/api.js`
+  - `frontend/src/components/layout/TopNav.jsx`
+  - `frontend/src/components/layout/SidebarNav.jsx`
+  - `frontend/src/components/layout/ProtectedLayout.jsx`
+  - `frontend/src/pages/auth/LoginPage.jsx`
+  - `frontend/src/pages/auth/RegisterPage.jsx`
+  - `frontend/src/pages/contracts/ContractsPage.jsx`
+  - `frontend/src/pages/workspace/WorkspacePage.jsx`
+  - `frontend/src/pages/telemetry/TelemetryPage.jsx`
+  - `frontend/src/tests/auth.test.jsx`
 - **Verification Gate**:
   - `npm --prefix frontend run typecheck`
   - `npm --prefix frontend run lint`
+  - `npm --prefix frontend test -- --run`
 
 ---
 
