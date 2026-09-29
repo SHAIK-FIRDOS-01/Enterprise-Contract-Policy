@@ -11,6 +11,7 @@ class OperationType(models.TextChoices):
     RRF_RETRIEVAL = "RRF_RETRIEVAL", "Reciprocal Rank Fusion Retrieval"
     LLM_SYNTHESIS = "LLM_SYNTHESIS", "LLM Inference and Answer Synthesis"
     CITATION_VERIFY = "CITATION_VERIFY", "Citation Grounding Verification"
+    AUTH_VERIFY = "AUTH_VERIFY", "Authentication Verification"
 
 
 class AuditBenchmarkLog(models.Model):

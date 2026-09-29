@@ -2,8 +2,6 @@
 from django.urls import path
 from apps.analytics.views import BenchmarksSummaryView
 
-app_name = "analytics"
-
 urlpatterns = [
     path("summary/", BenchmarksSummaryView.as_view(), name="benchmarks-summary"),
 ]
