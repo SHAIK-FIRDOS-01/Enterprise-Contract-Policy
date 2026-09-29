@@ -1,0 +1,14 @@
+-r requirements.txt
+
+# Testing & Harness
+pytest>=8.1.1
+pytest-django>=4.8.0
+pytest-asyncio>=0.23.6
+pytest-mock>=3.14.0
+
+# Typechecking & Linting
+mypy>=1.9.0
+django-stubs>=4.2.7
+djangorestframework-stubs>=3.14.5
+flake8>=7.0.0
+black>=24.3.0
