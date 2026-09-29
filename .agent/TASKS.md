@@ -14,7 +14,7 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
 | **TICKET-02** | `[x] Complete` | `core` & `analytics` | Django settings, modular URL routing, `AuditBenchmarkLog` model & telemetry tests |
 | **TICKET-03** | `[x] Complete` | `authentication` | Custom User model, SimpleJWT HttpOnly cookie rotation, auth tests |
 | **TICKET-04** | `[x] Complete` | `documents` | Document & DocumentChunk models, pgvector VectorField(384), HNSW & GIN indexes |
-| **TICKET-05** | `[ ] Pending` | `documents` | PyMuPDF (fitz) bounding box extraction engine & mock PDF unit tests |
+| **TICKET-05** | `[x] Complete` | `documents` | PyMuPDF (fitz) bounding box extraction engine & mock PDF unit tests |
 | **TICKET-06** | `[ ] Pending` | `documents` & Celery | Celery async worker, ingestion task, local embedding generation, Groq clause extraction & telemetry |
 | **TICKET-07** | `[ ] Pending` | `search` | Hybrid Search service (Dense pgvector + tsvector FTS fused via RRF $k=60$) & tests |
 | **TICKET-08** | `[ ] Pending` | `query` | Groq SSE Streaming Endpoint (`StreamingHttpResponse`), citation injection, telemetry |
@@ -96,7 +96,7 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
 ---
 
 ### TICKET-05: PyMuPDF Coordinate Bounding-Box Extraction Pipeline
-- **Status**: `[ ] Pending`
+- **Status**: `[x] Complete`
 - **Scope**: Build extraction service in `apps/documents/services/pdf_extractor.py` using `PyMuPDF` (`fitz`). Extract structured text blocks per page with exact coordinates `[x0, y0, x1, y1]`, normalize bounding boxes, chunk text into coherent legal segments (preserving page number and bounding box), and write unit test suite with mock generated PDF buffers.
 - **Files**:
   - `backend/apps/documents/services/pdf_extractor.py`

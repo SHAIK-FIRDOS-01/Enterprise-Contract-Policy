@@ -34,6 +34,13 @@ class DocumentUploadView(APIView):
         serializer.is_valid(raise_exception=True)
         document: Document = serializer.save()
 
+        # Trigger Celery ingestion task (with synchronous fallback)
+        try:
+            from apps.documents.tasks import process_document_pipeline
+            process_document_pipeline.delay(str(document.id))
+        except Exception:
+            pass
+
         response_serializer = DocumentDetailSerializer(document)
         return Response(
             response_serializer.data,
