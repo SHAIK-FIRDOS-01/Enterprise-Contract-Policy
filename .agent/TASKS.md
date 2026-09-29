@@ -10,14 +10,14 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
 
 | Ticket ID | Status | Module / App | Description |
 | :--- | :--- | :--- | :--- |
-| **TICKET-01** | `[ ] Pending` | Core Infrastructure | Scaffolding, Docker Compose (pgvector + Redis 7), Python & Node dependencies |
-| **TICKET-02** | `[ ] Pending` | `core` & `analytics` | Django settings, modular URL routing, `AuditBenchmarkLog` model & tests |
+| **TICKET-01** | `[ ] Pending` | Core Infrastructure | Scaffolding, Docker Compose (pgvector + Redis 7), Python (`groq`, `sentence-transformers`) & Node dependencies |
+| **TICKET-02** | `[ ] Pending` | `core` & `analytics` | Django settings, modular URL routing, `AuditBenchmarkLog` model & telemetry tests |
 | **TICKET-03** | `[ ] Pending` | `authentication` | Custom User model, SimpleJWT HttpOnly cookie rotation, auth tests |
-| **TICKET-04** | `[ ] Pending` | `documents` | Document & DocumentChunk models, pgvector VectorField, HNSW & GIN indexes |
+| **TICKET-04** | `[ ] Pending` | `documents` | Document & DocumentChunk models, pgvector VectorField(384), HNSW & GIN indexes |
 | **TICKET-05** | `[ ] Pending` | `documents` | PyMuPDF (fitz) bounding box extraction engine & mock PDF unit tests |
-| **TICKET-06** | `[ ] Pending` | `documents` & Celery | Celery async worker, ingestion task, baseline LLM clause extraction & telemetry |
+| **TICKET-06** | `[ ] Pending` | `documents` & Celery | Celery async worker, ingestion task, local embedding generation, Groq clause extraction & telemetry |
 | **TICKET-07** | `[ ] Pending` | `search` | Hybrid Search service (Dense pgvector + tsvector FTS fused via RRF $k=60$) & tests |
-| **TICKET-08** | `[ ] Pending` | `query` | SSE Streaming Endpoint (`StreamingHttpResponse`), citation injection, telemetry |
+| **TICKET-08** | `[ ] Pending` | `query` | Groq SSE Streaming Endpoint (`StreamingHttpResponse`), citation injection, telemetry |
 | **TICKET-09** | `[ ] Pending` | `frontend` | React 18+ Vite + Tailwind initialization, auth context, TanStack Query client |
 | **TICKET-10** | `[ ] Pending` | `frontend` | PDF.js split-pane viewer with dynamic bounding-box canvas highlight overlays |
 | **TICKET-11** | `[ ] Pending` | `frontend` | SSE streaming chat interface with interactive citation badges syncing to viewer |
@@ -29,7 +29,7 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
 
 ### TICKET-01: Core Infrastructure, Docker Services & Dependency Scaffolding
 - **Status**: `[ ] Pending`
-- **Scope**: Core project directory structure, Docker Compose with PostgreSQL 16 + `pgvector` extension and Redis 7, Python configuration (`pyproject.toml`, `requirements.txt`, `requirements-dev.txt`), Frontend base (`package.json`, `tsconfig.json`, `vite.config.ts`), and `.env.example`.
+- **Scope**: Core project directory structure, Docker Compose with PostgreSQL 16 + `pgvector` extension and Redis 7, Python configuration (`pyproject.toml`, `requirements.txt`, `requirements-dev.txt`) with `groq` and `sentence-transformers`, Frontend base (`package.json`, `tsconfig.json`, `vite.config.ts`), and `.env.example` with `GROQ_API_KEY`.
 - **Files**:
   - `docker-compose.yml`
   - `.env.example`
@@ -46,7 +46,7 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
 
 ### TICKET-02: Django Core Settings, Modular URL Routing & Analytics Telemetry
 - **Status**: `[ ] Pending`
-- **Scope**: Configure Django core `settings.py` for modular 5-app architecture, database credentials from environment, pgvector engine compatibility, modular root `urls.py`. Implement `apps/analytics` with `AuditBenchmarkLog` model, telemetry recording service, and Pytest suite.
+- **Scope**: Configure Django core `settings.py` for modular 5-app architecture, database credentials from environment, pgvector engine compatibility, modular root `urls.py`. Implement `apps/analytics` with `AuditBenchmarkLog` model (tracking `operation`, `model_name`, `duration_ms` via `time.perf_counter()`, `prompt_tokens`, `completion_tokens`, `total_tokens`, `estimated_cost_usd` per Groq rates, `status`, `error_message`), telemetry recording service, and Pytest suite.
 - **Files**:
   - `backend/core/settings.py`
   - `backend/core/urls.py`
@@ -81,7 +81,7 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
 
 ### TICKET-04: Documents Data Layer & pgvector VectorField Schema
 - **Status**: `[ ] Pending`
-- **Scope**: Implement `Document` and `DocumentChunk` models in `apps/documents`. Integrate `pgvector.django.VectorField(dimensions=1536)` and `django.contrib.postgres.search.SearchVectorField`. Add HNSW index (`vector_cosine_ops`) and GIN index for full-text search. Generate initial Django migrations and verify bidirectional migration reversibility.
+- **Scope**: Implement `Document` and `DocumentChunk` models in `apps/documents`. Integrate `pgvector.django.VectorField(dimensions=384)` and `django.contrib.postgres.search.SearchVectorField`. Add HNSW index (`vector_cosine_ops`) and GIN index for full-text search. Generate initial Django migrations and verify bidirectional migration reversibility.
 - **Files**:
   - `backend/apps/documents/models.py`
   - `backend/apps/documents/serializers.py`
@@ -108,9 +108,9 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
 
 ---
 
-### TICKET-06: Celery Async Ingestion Task, Baseline LLM Clause Extraction & Telemetry
+### TICKET-06: Celery Async Ingestion Task, Embedding Generation & Telemetry
 - **Status**: `[ ] Pending`
-- **Scope**: Configure Celery async ingestion task `process_document_pipeline`. Handle PDF extraction, OpenAI embedding generation (`text-embedding-3-small`), `tsvector` generation, batch DB insertion, baseline LLM clause risk extraction (classification into clause types with risk score), and telemetry logging into `AuditBenchmarkLog`.
+- **Scope**: Configure Celery async ingestion task `process_document_pipeline`. Handle PDF extraction, embedding generation (using local HuggingFace `all-MiniLM-L6-v2` / `bge-small-en-v1.5`), `tsvector` generation, batch DB insertion, Groq clause extraction (classification into clause types with risk score), and telemetry logging into `AuditBenchmarkLog`.
 - **Files**:
   - `backend/apps/documents/tasks.py`
   - `backend/apps/documents/views.py`
@@ -138,9 +138,9 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
 
 ---
 
-### TICKET-08: apps/query SSE Streaming Endpoint with Citation Attachment
+### TICKET-08: apps/query Groq SSE Streaming Endpoint with Citation Attachment
 - **Status**: `[ ] Pending`
-- **Scope**: Implement `POST /api/query/stream/` returning `StreamingHttpResponse(content_type="text/event-stream")`. Retrieve relevant chunks using hybrid search, assemble legal prompt with system guardrails, stream generated tokens, inject JSON citation payloads (`chunk_id`, `page_number`, `bounding_box`), verify grounding, and log metrics in `AuditBenchmarkLog`.
+- **Scope**: Implement `POST /api/query/stream/` returning `StreamingHttpResponse(content_type="text/event-stream")`. Retrieve relevant chunks using hybrid search, assemble legal prompt with system guardrails, stream generated tokens via Groq API (`llama-3.3-70b-versatile`), inject JSON citation payloads (`chunk_id`, `page_number`, `bounding_box`), and log telemetry metrics in `AuditBenchmarkLog`.
 - **Files**:
   - `backend/apps/query/services/streamer.py`
   - `backend/apps/query/services/prompt_builder.py`
@@ -199,7 +199,7 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
 
 ### TICKET-12: Automated Benchmark Suite & High-Resolution Telemetry Visualization
 - **Status**: `[ ] Pending`
-- **Scope**: Create end-to-end benchmark script `scripts/run_benchmark_suite.py` comparing Baseline LLM passes against LAYA System One (Hybrid RRF) across synthetic contracts. Create `scripts/export_metrics.py` exporting publication-ready comparative charts (latency, cost, grounding scores).
+- **Scope**: Create end-to-end benchmark script `scripts/run_benchmark_suite.py` measuring Groq execution latency, prompt/completion tokens, and cost. Create `scripts/export_metrics.py` exporting publication-ready charts (latency, cost, throughput).
 - **Files**:
   - `scripts/run_benchmark_suite.py`
   - `scripts/export_metrics.py`

@@ -16,9 +16,10 @@ redis>=5.0.4
 # PDF Processing & Extraction
 PyMuPDF>=1.24.1
 
-# LLM & Embeddings
-openai>=1.30.1
-tiktoken>=0.7.0
+# LLM (Groq) & Embeddings (Local HuggingFace)
+groq>=0.9.0
+sentence-transformers>=2.7.0
+torch>=2.2.0
 
 # HTTP & Utilities
 requests>=2.31.0

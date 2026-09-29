@@ -1,33 +1,34 @@
 # Product Requirements Document (PRD)
 
-## Enterprise Contract & Policy Copilot (Dual-System RAG with Hybrid RRF & Telemetry Engine)
+## Enterprise Contract & Policy Copilot (Hybrid RRF RAG & Real-Time Telemetry Engine)
 
 ---
 
 ## 1. Executive Summary & Business Problem Statement
 
-Enterprise organizations navigate thousands of high-stakes legal agreements, vendor contracts, master service agreements (MSAs), and regulatory compliance policies annually. Currently, legal and compliance teams face severe bottlenecks:
-- **Lengthy Review Cycles**: Manual review of 50-to-200 page contracts takes 4 to 12 hours per document, stalling procurement and sales deals.
+Enterprise organizations navigate thousands of high-stakes legal agreements, vendor contracts, master service agreements (MSAs), and regulatory compliance policies annually. Currently, legal and compliance teams face severe operational bottlenecks:
+- **Lengthy Review Cycles**: Manual review of 50-to-200 page contracts takes 4 to 12 hours per document, stalling procurement and deal execution.
 - **Risk of Hallucinated AI Advice**: Generic LLMs hallucinate clauses or fail to pinpoint exact contractual language, risking catastrophic legal exposure.
-- **Opaque Retrieval**: Existing naive vector search fails when searching for exact domain terminology, section numbers, or nuanced legal phrasing (e.g. "consequential damages cap within Section 14.2").
-- **Lack of Verification Telemetry**: Enterprises lack visibility into grounding accuracy, token economics, latency, and parse validity between standard baseline LLMs and specialized RAG pipelines.
+- **Opaque Retrieval**: Naive dense-only or sparse-only search misses critical numerical thresholds, section numbers, or legal phrasing (e.g., "consequential damages cap under Section 14.2").
+- **Lack of Operational Telemetry**: Enterprises lack granular visibility into real execution latency, token economics, and grounding verification across query lifecycles.
 
-The **Enterprise Contract & Policy Copilot** resolves these challenges through a dual-system architecture:
-1. **System One (Dual-System RAG)**: Combines dense vector semantic retrieval (pgvector HNSW) with sparse lexical full-text search (`tsvector`), fused via **Reciprocal Rank Fusion (RRF $k=60$)**, with sub-chunk coordinate bounding box extraction (`PyMuPDF`) for sub-second, hallucination-resistant retrieval.
-2. **System Two (Telemetry & Benchmarking Engine)**: Continuously records latency, token cost, schema parse validity, and grounding metrics across query executions in an `AuditBenchmarkLog` ledger, allowing real-time auditability and ROI tracking.
+The **Enterprise Contract & Policy Copilot** resolves these challenges through a unified, production-grade architecture:
+1. **Hybrid RRF Search Engine**: Combines dense semantic vector retrieval (pgvector HNSW) with sparse lexical full-text search (`tsvector`), fused via **Reciprocal Rank Fusion (RRF $k=60$)**, with sub-chunk coordinate bounding box extraction (`PyMuPDF`) for sub-second, hallucination-resistant retrieval.
+2. **Groq Low-Latency Inference**: Ultra-fast LLM generation and streaming powered by the Groq Python SDK (`llama-3.3-70b-versatile` / `mixtral-8x7b-32768`), delivering Time-To-First-Token (TTFT) under 500ms.
+3. **Real-Time Telemetry Engine**: Every pipeline step (`INGEST_CHUNK_PARSE`, `EMBEDDING_GEN`, `RRF_RETRIEVAL`, `LLM_SYNTHESIS`, `CITATION_VERIFY`) writes actual execution records to PostgreSQL in `AuditBenchmarkLog`, tracking precise wall-clock duration (`time.perf_counter()`), prompt/completion/total token counts, and dollar costs calculated per Groq rate tables.
 
 ---
 
 ## 2. Persona Workflows & Target Users
 
 ### Persona 1: Legal Auditor (Primary User)
-- **Role**: Staff counsel or external legal auditor reviewing complex bilateral agreements.
+- **Role**: Staff counsel or legal auditor reviewing bilateral contracts and compliance policies.
 - **Goals**: Verify clause adherence, locate non-standard indemnification liabilities, and generate audit trails.
 - **Workflow**:
   1. Uploads counterparty Master Service Agreement (PDF).
-  2. Waits for non-blocking asynchronous ingestion.
+  2. Waits for non-blocking asynchronous Celery ingestion.
   3. Inspects the automated Clause Playbook Audit to view flags on liability caps, governing law, and indemnities.
-  4. Chats with Copilot: *"Does this contract include a mutual indemnification clause, and what is the liability cap?"*
+  4. Queries Copilot: *"Does this contract include a mutual indemnification clause, and what is the liability cap?"*
   5. Clicks returned citation badges to immediately jump to the exact page and highlight the bounding box in the integrated PDF viewer.
   6. Exports audit summary and redline diffs.
 
@@ -35,17 +36,17 @@ The **Enterprise Contract & Policy Copilot** resolves these challenges through a
 - **Role**: Corporate governance officer responsible for GDPR, SOC 2, HIPAA, and internal policy conformance.
 - **Goals**: Ensure every contract conforms to updated organizational policy rules and data privacy guidelines.
 - **Workflow**:
-  1. Submits batches of vendor data processing addenda (DPAs).
-  2. Runs automated Playbook Compliance Checklists against SOC 2 security schedules.
+  1. Submits vendor data processing addenda (DPAs).
+  2. Runs automated Playbook Compliance Checklists against organizational security standards.
   3. Reviews AI redlining suggestions to replace non-compliant terms with standardized playbook language.
 
-### Persona 3: C-Suite Executive / General Counsel
-- **Role**: VP of Legal / General Counsel managing risk posture and software efficiency.
-- **Goals**: Quantify copilot accuracy, monitor inference cost, and review audit benchmarks.
+### Persona 3: System Administrator / DevOps Lead
+- **Role**: Platform owner monitoring latency, inference cost, and system reliability.
+- **Goals**: Quantify copilot accuracy, monitor token consumption, and inspect real operational logs.
 - **Workflow**:
-  1. Opens the Telemetry & Benchmark Dashboard.
-  2. Analyzes comparative metrics between Baseline LLM vs Optimized Hybrid RRF pipelines (latency, grounding confidence, estimated cost).
-  3. Reviews audit logs for compliance tracking.
+  1. Opens the Telemetry & Audit Dashboard.
+  2. Inspects real terminal logs and database records in `AuditBenchmarkLog` across all operations.
+  3. Evaluates prompt/completion token usage and cost metrics calculated per Groq pricing tables.
 
 ---
 
@@ -56,9 +57,9 @@ The **Enterprise Contract & Policy Copilot** resolves these challenges through a
 - Use `PyMuPDF (fitz)` to extract structural text blocks with precise coordinate bounding boxes:
   $$\text{BBox} = \{x_0, y_0, x_1, y_1\} \quad \text{on page } p$$
 - Segregate text into semantic chunks (~400-800 tokens) while preserving exact page number and bounding box coordinates for each chunk.
-- Generate dense vector embeddings (1536 dimensions) using OpenAI-compatible embedding models.
-- Generate PostgreSQL `tsvector` representations for full-text search.
-- Ingestion must run asynchronously via Celery workers backed by Redis, keeping the HTTP upload endpoint non-blocking (`202 Accepted`).
+- Generate dense vector embeddings (384 dimensions) using local HuggingFace embeddings (`sentence-transformers/all-MiniLM-L6-v2` or `BAAI/bge-small-en-v1.5`) or OpenAI.
+- Generate PostgreSQL `tsvector` representations for full-text lexical search.
+- Ingestion runs asynchronously via Celery workers backed by Redis, keeping the HTTP upload endpoint non-blocking (`202 Accepted`).
 
 ### 3.2 Hybrid Search with Reciprocal Rank Fusion (RRF $k=60$)
 - Query the PostgreSQL database simultaneously across two modalities:
@@ -70,20 +71,21 @@ The **Enterprise Contract & Policy Copilot** resolves these challenges through a
 
 ### 3.3 Server-Sent Events (SSE) Token Streaming with Deep-Linked Citations
 - Endpoint: `POST /api/query/stream/`
-- Stream model generation token-by-token using Django's `StreamingHttpResponse` with SSE format (`data: {"type": "token", "content": "..."}`).
+- Stream Groq LLM generations token-by-token using Django's `StreamingHttpResponse` with SSE format (`data: {"type": "token", "content": "..."}`).
 - Send structured citation payloads (`data: {"type": "citation", "chunk_id": "...", "page_number": 3, "bounding_box": {...}}`).
 - Emit terminal event `data: [DONE]`.
-- React frontend renders tokens in real time and renders interactive citation chips that immediately control the PDF viewer.
+- React frontend renders tokens in real time and renders interactive citation chips that synchronize with the PDF viewer.
 
-### 3.4 Automated Benchmark Instrumentation & Telemetry Engine
-- Track every pipeline execution inside `AuditBenchmarkLog`:
-  - `pipeline_type`: `BASELINE_LLM` vs `LAYA_SYSTEM_ONE` (Hybrid RAG).
-  - `operation`: `INGEST_TRIAGE`, `CITATION_VERIFY`, `END_TO_END_QUERY`.
-  - `duration_ms`: Wall-clock latency in milliseconds.
-  - `input_tokens`, `output_tokens`, and `estimated_cost_usd`.
-  - `schema_parse_success`: Boolean indicating valid structured JSON extraction.
-  - `grounding_score`: Quantitative attribution score between answer claims and source chunks.
-- Aggregated metrics API endpoint: `GET /api/benchmarks/summary/`.
+### 3.4 Operational Telemetry & Audit Benchmark Logging
+- Every pipeline execution logs discrete records to `AuditBenchmarkLog`:
+  - `operation`: `INGEST_CHUNK_PARSE`, `EMBEDDING_GEN`, `RRF_RETRIEVAL`, `LLM_SYNTHESIS`, `CITATION_VERIFY`.
+  - `model_name`: String identifier (e.g., `llama-3.3-70b-versatile`, `all-MiniLM-L6-v2`).
+  - `duration_ms`: High-precision float wall-clock execution time via `time.perf_counter()`.
+  - `prompt_tokens`, `completion_tokens`, `total_tokens`.
+  - `estimated_cost_usd`: Calculated per Groq rate tables.
+  - `status`: `SUCCESS` vs `FAILED`.
+  - `error_message`: Text or null.
+- Expose summary telemetry endpoint: `GET /api/benchmarks/summary/`.
 
 ---
 
@@ -116,8 +118,8 @@ The **Enterprise Contract & Policy Copilot** resolves these challenges through a
 | Metric / Aspect | Requirement |
 | :--- | :--- |
 | **Search Latency** | Hybrid RRF query retrieval under 250ms for 100k chunk index. |
-| **Streaming Latency** | Time to First Token (TTFT) under 600ms via SSE. |
-| **Throughput & Concurrency** | Ingestion queues handled asynchronously; HTTP server never blocks on PDF parsing or embedding API calls. |
-| **Zero Database Lockups** | Batch chunk insertion inside database transactions; separate worker pool. |
+| **Streaming Latency** | Time to First Token (TTFT) under 500ms via Groq API. |
+| **Throughput & Concurrency** | Ingestion queues handled asynchronously; HTTP server never blocks on PDF parsing or embedding computation. |
+| **Zero Database Lockups** | Batch chunk insertion inside database transactions; separate Celery worker pool. |
 | **Security Hygiene** | Strict role-based access control (RBAC), HttpOnly cookies, zero committed credentials, sanitized SQL inputs. |
-| **Reliability & Resilience** | Celery tasks support exponential backoff retries on external LLM/embedding API failures; document status transitions to `FAILED` with logged error if terminal. |
+| **Reliability & Resilience** | Celery tasks support exponential backoff retries on external LLM/Groq API failures; document status transitions to `FAILED` with logged error if terminal. |
