@@ -10,7 +10,7 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
 
 | Ticket ID | Status | Module / App | Description |
 | :--- | :--- | :--- | :--- |
-| **TICKET-01** | `[ ] Pending` | Core Infrastructure | Scaffolding, Docker Compose (pgvector + Redis 7), Python (`groq`, `sentence-transformers`) & Node dependencies |
+| **TICKET-01** | `[x] Complete` | Core Infrastructure | Scaffolding, Docker Compose (pgvector + Redis 7), Python (`groq`, `sentence-transformers`) & Node dependencies |
 | **TICKET-02** | `[ ] Pending` | `core` & `analytics` | Django settings, modular URL routing, `AuditBenchmarkLog` model & telemetry tests |
 | **TICKET-03** | `[ ] Pending` | `authentication` | Custom User model, SimpleJWT HttpOnly cookie rotation, auth tests |
 | **TICKET-04** | `[ ] Pending` | `documents` | Document & DocumentChunk models, pgvector VectorField(384), HNSW & GIN indexes |
@@ -28,7 +28,7 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
 ## Detailed Ticket Specifications
 
 ### TICKET-01: Core Infrastructure, Docker Services & Dependency Scaffolding
-- **Status**: `[ ] Pending`
+- **Status**: `[x] Complete`
 - **Scope**: Core project directory structure, Docker Compose with PostgreSQL 16 + `pgvector` extension and Redis 7, Python configuration (`pyproject.toml`, `requirements.txt`, `requirements-dev.txt`) with `groq` and `sentence-transformers`, Frontend base (`package.json`, `tsconfig.json`, `vite.config.ts`), and `.env.example` with `GROQ_API_KEY`.
 - **Files**:
   - `docker-compose.yml`

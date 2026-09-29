@@ -3,6 +3,22 @@
 $ErrorActionPreference = "Continue"
 $failedGates = 0
 
+# Detect and activate virtual environment
+$venvScripts = ""
+if (Test-Path ".venv/Scripts") {
+    $venvScripts = (Resolve-Path ".venv/Scripts").Path
+} elseif (Test-Path ".venv/bin") {
+    $venvScripts = (Resolve-Path ".venv/bin").Path
+} elseif (Test-Path "backend/.venv/Scripts") {
+    $venvScripts = (Resolve-Path "backend/.venv/Scripts").Path
+}
+
+if ($venvScripts) {
+    Write-Host ">> Detected virtual environment at: $venvScripts" -ForegroundColor Cyan
+    $env:PATH = "$venvScripts;$env:PATH"
+    $env:VIRTUAL_ENV = (Split-Path $venvScripts -Parent)
+}
+
 function Run-Gate {
     param(
         [string]$GateName,
@@ -33,21 +49,21 @@ Write-Host "Starting Autonomous Harness Referee Verification Gate Checks..." -Fo
 if (Get-Command mypy -ErrorAction SilentlyContinue) {
     Run-Gate "Backend Typecheck (mypy)" { mypy backend }
 } else {
-    Write-Host "Skipping mypy (not found in current environment)" -ForegroundColor DarkGray
+    Write-Host "Skipping mypy (not found in current virtualenv)" -ForegroundColor DarkGray
 }
 
 # Gate 2: Backend Lint
 if (Get-Command flake8 -ErrorAction SilentlyContinue) {
     Run-Gate "Backend Lint (flake8)" { flake8 backend }
 } else {
-    Write-Host "Skipping flake8 (not found in current environment)" -ForegroundColor DarkGray
+    Write-Host "Skipping flake8 (not found in current virtualenv)" -ForegroundColor DarkGray
 }
 
 # Gate 3: Backend Pytest Test Suite
 if (Get-Command pytest -ErrorAction SilentlyContinue) {
     Run-Gate "Backend Test Suite (pytest)" { pytest tests/backend -q --tb=short }
 } else {
-    Write-Host "Skipping pytest (not found in current environment)" -ForegroundColor DarkGray
+    Write-Host "Skipping pytest (not found in current virtualenv)" -ForegroundColor DarkGray
 }
 
 # Gate 4: Frontend Checks

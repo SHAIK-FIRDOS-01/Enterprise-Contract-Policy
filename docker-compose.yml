@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  db:
+  postgres:
     image: pgvector/pgvector:pg16
     container_name: copilot_postgres
     restart: always
@@ -47,7 +47,7 @@ services:
     env_file:
       - .env
     depends_on:
-      db:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -64,7 +64,7 @@ services:
     env_file:
       - .env
     depends_on:
-      db:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
