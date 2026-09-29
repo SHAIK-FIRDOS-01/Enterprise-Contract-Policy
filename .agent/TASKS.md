@@ -143,6 +143,23 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
 
 ---
 
+### TICKET-08: Citation Verification Engine - Deterministic Ground-Truth Validator, Confidence Scoring, and Audit Logging
+- **Status**: `[x] Complete`
+- **Scope**: Implement `CitationValidator` in `apps/query/services/verifier.py`. Combine deterministic lexical containment and `VectorEmbeddingService` cosine similarity to score factual grounding. Enforce categorical confidence thresholds (`HIGH >= 0.75`, `MEDIUM >= 0.50`, `REJECTED < 0.50`). Integrate verification event in `StreamingQueryView`, provide `POST /api/query/verify/` endpoint, and log `CITATION_VERIFY` telemetry in `AuditBenchmarkLog`.
+- **Files**:
+  - `backend/apps/query/services/verifier.py`
+  - `backend/apps/query/services/synthesis.py`
+  - `backend/apps/query/serializers.py`
+  - `backend/apps/query/views.py`
+  - `backend/apps/query/urls.py`
+  - `tests/backend/test_ticket_08_verification.py`
+- **Verification Gate**:
+  - `pytest tests/backend/test_ticket_08_verification.py -q --tb=short`
+  - `flake8 backend`
+  - `mypy backend`
+
+---
+
 ### TICKET-09: React Vite + Tailwind UI Foundation & Auth Client
 - **Status**: `[ ] Pending`
 - **Scope**: Setup React 18+ client with TypeScript, Tailwind CSS, TanStack Query, and Axios/Fetch client configured with credentials (`withCredentials: true`). Implement authentication context (login modal, persistent user session check, logout) and main application dashboard shell.

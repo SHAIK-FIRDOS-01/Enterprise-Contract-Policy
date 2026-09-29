@@ -208,6 +208,16 @@ class GroqSynthesisService:
                 completion_tokens=completion_tokens,
             )
 
+        # Event 3: Verification of synthesized citations
+        from apps.query.services.verifier import CitationValidator
+        validator = CitationValidator()
+        full_text = "".join(accumulated_text)
+        verified_citations = validator.verify_synthesis(full_text, retrieved_chunks)
+        yield (
+            f"event: verification\n"
+            f"data: {json.dumps([v.to_dict() for v in verified_citations])}\n\n"
+        )
+
         log_inst = tracker.log_instance
         telemetry_payload = {
             "duration_ms": log_inst.duration_ms if log_inst else 0.0,
