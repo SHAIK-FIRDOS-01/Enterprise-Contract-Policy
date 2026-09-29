@@ -1,9 +1,9 @@
 """Search URLs."""
-from django.urls import URLPattern
-from typing import List
+from django.urls import path
+from apps.search.views import HybridSearchView
 
 app_name = "search"
 
-urlpatterns: List[URLPattern] = [
-    # Endpoints to be wired in TICKET-07
+urlpatterns = [
+    path("hybrid/", HybridSearchView.as_view(), name="hybrid_search"),
 ]

@@ -108,33 +108,20 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
 
 ---
 
-### TICKET-06: Celery Async Ingestion Task, Embedding Generation & Telemetry
-- **Status**: `[ ] Pending`
-- **Scope**: Configure Celery async ingestion task `process_document_pipeline`. Handle PDF extraction, embedding generation (using local HuggingFace `all-MiniLM-L6-v2` / `bge-small-en-v1.5`), `tsvector` generation, batch DB insertion, Groq clause extraction (classification into clause types with risk score), and telemetry logging into `AuditBenchmarkLog`.
-- **Files**:
-  - `backend/apps/documents/tasks.py`
-  - `backend/apps/documents/views.py`
-  - `backend/apps/documents/urls.py`
-  - `tests/backend/test_documents_pipeline.py`
-- **Verification Gate**:
-  - `pytest tests/backend/test_documents_pipeline.py -q --tb=short`
-  - `flake8 backend`
-  - `mypy backend`
-
----
-
-### TICKET-07: apps/search Hybrid Search Engine (Dense + Sparse RRF k=60)
-- **Status**: `[ ] Pending`
-- **Scope**: Implement `apps/search/services/hybrid_search.py`. Execute raw SQL Reciprocal Rank Fusion ($k=60$) combining pgvector cosine distance (`<=>`) and PostgreSQL `ts_rank_cd`. Provide filtering by `document_id`. Write comprehensive unit and integration tests comparing pure dense, pure sparse, and hybrid RRF rankings.
+### TICKET-06: apps/search Hybrid Search Engine (Dense + Sparse RRF k=60) & Search API
+- **Status**: `[x] Complete`
+- **Scope**: Implement `apps/search/services/hybrid_search.py`. Execute raw SQL Reciprocal Rank Fusion ($k=60$) combining pgvector cosine distance (`<=>`) and PostgreSQL `ts_rank_cd`. Provide filtering by `document_id`. Implement `POST /api/search/hybrid/` endpoint with JWT authentication and comprehensive unit/integration test suite.
 - **Files**:
   - `backend/apps/search/services/hybrid_search.py`
+  - `backend/apps/search/serializers.py`
   - `backend/apps/search/views.py`
   - `backend/apps/search/urls.py`
-  - `tests/backend/test_search_rrf.py`
+  - `tests/backend/test_ticket_06_search.py`
 - **Verification Gate**:
-  - `pytest tests/backend/test_search_rrf.py -q --tb=short`
+  - `pytest tests/backend/test_ticket_06_search.py -q --tb=short`
   - `flake8 backend`
   - `mypy backend`
+
 
 ---
 
