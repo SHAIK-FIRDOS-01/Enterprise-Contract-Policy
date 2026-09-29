@@ -63,10 +63,11 @@ class DocumentListView(generics.ListAPIView):
         return Document.objects.filter(user=user)
 
 
-class DocumentDetailView(generics.RetrieveAPIView):
+class DocumentDetailView(generics.RetrieveDestroyAPIView):
     """
     GET /api/documents/<uuid:pk>/
-    Retrieves document status, metadata, and chunk count with user isolation.
+    DELETE /api/documents/<uuid:pk>/
+    Retrieves or deletes document with user isolation.
     """
     permission_classes = [IsAuthenticated]
     serializer_class = DocumentDetailSerializer

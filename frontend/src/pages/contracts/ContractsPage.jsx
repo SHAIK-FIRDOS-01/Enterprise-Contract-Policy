@@ -1,69 +1,149 @@
-import React from 'react';
-import { FileText, Filter, Plus } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Plus, RefreshCw, Search } from 'lucide-react';
+import api from '../../services/api';
+import DocumentListTable from '../../components/contracts/DocumentListTable';
+import DocumentUploadModal from '../../components/contracts/DocumentUploadModal';
 
 export const ContractsPage = () => {
+  const [documents, setDocuments] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const pollingRef = useRef(null);
+
+  const fetchDocuments = useCallback(async () => {
+    try {
+      const response = await api.get('/api/documents/');
+      const docs = Array.isArray(response.data)
+        ? response.data
+        : response.data.results || [];
+      setDocuments(docs);
+      setIsLoading(false);
+      return docs;
+    } catch {
+      setIsLoading(false);
+      return [];
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
+
+  // Auto-polling when documents are in transition state
+  useEffect(() => {
+    const hasTransitioningDocs = documents.some((d) =>
+      ['PENDING', 'PARSING', 'INDEXING'].includes(d.status)
+    );
+
+    if (hasTransitioningDocs) {
+      pollingRef.current = setInterval(() => {
+        fetchDocuments();
+      }, 3000);
+    } else {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    }
+
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, [documents, fetchDocuments]);
+
+  const handleDeleteDocument = async (docId) => {
+    if (!window.confirm('Confirm deletion of document and all indexed chunk vectors?')) {
+      return;
+    }
+
+    try {
+      await api.delete(`/api/documents/${docId}/`);
+      setDocuments((prev) => prev.filter((d) => d.id !== docId));
+    } catch {
+      // Re-fetch to synchronize state
+      fetchDocuments();
+    }
+  };
+
+  const filteredDocuments = documents.filter((doc) => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      doc.title?.toLowerCase().includes(q) ||
+      doc.file_hash?.toLowerCase().includes(q)
+    );
+  });
+
   return (
-    <div className="space-y-6">
+    <div className="h-full flex flex-col bg-zinc-950 text-zinc-100 font-sans overflow-y-auto">
       {/* Page Header */}
-      <div className="flex items-center justify-between pb-4 border-b border-zinc-800">
+      <div className="px-6 py-4 border-b border-zinc-800 bg-zinc-900/40 flex items-center justify-between">
         <div>
-          <h1 className="text-base font-semibold text-zinc-100 tracking-tight">
-            Contracts & Policies Repository
+          <h1 className="text-sm font-mono font-semibold tracking-wider text-zinc-100 uppercase">
+            Contract & Policy Documents Ingestion Repository
           </h1>
           <p className="text-xs text-zinc-400 font-mono mt-0.5">
-            Ingestion registry with coordinate bounding-box extraction and pgvector HNSW indexing
+            Vectorized legal corpus with PyMuPDF coordinate bounding-box extraction & pgvector HNSW indexing
           </p>
         </div>
 
-        <div className="flex items-center space-x-2.5">
-          <button className="h-8 px-3 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 text-xs font-mono text-zinc-300 flex items-center space-x-1.5 transition-colors">
-            <Filter className="w-3.5 h-3.5 text-zinc-400" />
-            <span>Filter</span>
+        <div className="flex items-center gap-2 font-mono">
+          <button
+            type="button"
+            onClick={fetchDocuments}
+            className="h-8 px-2.5 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 text-xs text-zinc-300 flex items-center gap-1.5 transition-colors"
+            title="Refresh Ingestion Registry"
+          >
+            <RefreshCw className="w-3.5 h-3.5 text-zinc-400" />
+            <span>SYNC</span>
           </button>
-          <button className="h-8 px-3 rounded bg-zinc-100 hover:bg-zinc-200 text-xs font-medium text-zinc-900 flex items-center space-x-1.5 transition-colors shadow">
+
+          <button
+            type="button"
+            onClick={() => setIsUploadModalOpen(true)}
+            className="h-8 px-3 rounded bg-zinc-100 hover:bg-zinc-200 text-zinc-900 font-semibold text-xs flex items-center gap-1.5 transition-colors shadow"
+          >
             <Plus className="w-3.5 h-3.5" />
-            <span>Upload Document</span>
+            <span>INGEST PDF</span>
           </button>
         </div>
       </div>
 
-      {/* Main Table / Registry */}
-      <div className="rounded border border-zinc-800 bg-zinc-900/40 overflow-hidden">
-        <table className="w-full text-left border-collapse text-xs">
-          <thead>
-            <tr className="border-b border-zinc-800 bg-zinc-900 text-zinc-400 font-mono text-[11px] uppercase tracking-wider">
-              <th className="py-2.5 px-4 font-medium">Document Title</th>
-              <th className="py-2.5 px-4 font-medium">SHA-256 Hash</th>
-              <th className="py-2.5 px-4 font-medium">Pages</th>
-              <th className="py-2.5 px-4 font-medium">Status</th>
-              <th className="py-2.5 px-4 font-medium text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-800/60 font-mono text-xs">
-            <tr className="hover:bg-zinc-850/50 transition-colors">
-              <td className="py-3 px-4 font-sans font-medium text-zinc-200 flex items-center space-x-2">
-                <FileText className="w-4 h-4 text-zinc-400 flex-shrink-0" />
-                <span>Vendor Master Services Agreement 2026.pdf</span>
-              </td>
-              <td className="py-3 px-4 text-zinc-400 text-[11px]">
-                e3b0c44298fc1c14...
-              </td>
-              <td className="py-3 px-4 text-zinc-300 tabular-nums">42</td>
-              <td className="py-3 px-4">
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-emerald-950/60 text-emerald-400 border border-emerald-800/60">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse" />
-                  READY
-                </span>
-              </td>
-              <td className="py-3 px-4 text-right">
-                <button className="text-zinc-400 hover:text-zinc-100 text-xs transition-colors underline underline-offset-2">
-                  Open Workspace
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      {/* Main Content Area */}
+      <div className="p-6 space-y-4">
+        {/* Search Bar */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="relative flex-1 max-w-md">
+            <Search className="w-4 h-4 absolute left-3 top-2.5 text-zinc-500 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search contracts by title or SHA-256 hash..."
+              className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-1.5 pl-9 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-400 font-mono transition-colors"
+            />
+          </div>
+
+          <div className="text-xs font-mono text-zinc-500">
+            TOTAL INGESTED: <span className="text-zinc-200 font-bold tabular-nums">{documents.length}</span>
+          </div>
+        </div>
+
+        {/* Documents Table */}
+        <DocumentListTable
+          documents={filteredDocuments}
+          isLoading={isLoading}
+          onDeleteDocument={handleDeleteDocument}
+          onRefresh={fetchDocuments}
+        />
       </div>
+
+      {/* Upload Modal */}
+      <DocumentUploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        onUploadSuccess={() => {
+          fetchDocuments();
+        }}
+      />
     </div>
   );
 };

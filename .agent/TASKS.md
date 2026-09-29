@@ -184,15 +184,22 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
 ---
 
 ### TICKET-10: React PDF Viewer with Dynamic Bounding-Box Canvas Overlays
-- **Status**: `[ ] Pending`
-- **Scope**: Implement split-pane contract viewing interface using `PDF.js` / `react-pdf`. Render multi-page PDF documents with thumbnail navigation, zoom controls, and a custom canvas overlay layer that dynamically draws high-contrast bounding boxes on top of cited clauses when clicked.
+- **Status**: `[x] Complete`
+- **Scope**: Implement interactive contract viewing interface using `pdfjs-dist` and HTML5 canvas. Render multi-page PDF documents with page navigation, zoom controls, and a custom canvas overlay layer that dynamically draws high-contrast bounding boxes on top of cited clauses with hover metadata tooltips and interactive selection. Provide contract upload and registry table management.
 - **Files**:
-  - `frontend/src/components/PDFViewer/SplitPaneContainer.tsx`
-  - `frontend/src/components/PDFViewer/PDFCanvasViewer.tsx`
-  - `frontend/src/components/PDFViewer/BoundingBoxOverlay.tsx`
-  - `frontend/src/types/document.ts`
+  - `frontend/src/utils/coordinates.js`
+  - `frontend/src/components/viewer/PDFViewer.jsx`
+  - `frontend/src/components/viewer/ViewerControls.jsx`
+  - `frontend/src/components/viewer/BoundingBoxOverlay.jsx`
+  - `frontend/src/components/contracts/DocumentUploadModal.jsx`
+  - `frontend/src/components/contracts/DocumentListTable.jsx`
+  - `frontend/src/pages/contracts/ContractsPage.jsx`
+  - `frontend/src/pages/workspace/WorkspacePage.jsx`
+  - `frontend/src/tests/pdf_viewer.test.jsx`
+  - `backend/apps/documents/views.py`
 - **Verification Gate**:
   - `npm --prefix frontend run typecheck`
+  - `npm --prefix frontend run lint`
   - `npm --prefix frontend test -- --run`
 
 ---
