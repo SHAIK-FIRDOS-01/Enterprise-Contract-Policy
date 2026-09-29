@@ -15,13 +15,14 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
 | **TICKET-03** | `[x] Complete` | `authentication` | Custom User model, SimpleJWT HttpOnly cookie rotation, auth tests |
 | **TICKET-04** | `[x] Complete` | `documents` | Document & DocumentChunk models, pgvector VectorField(384), HNSW & GIN indexes |
 | **TICKET-05** | `[x] Complete` | `documents` | PyMuPDF (fitz) bounding box extraction engine & mock PDF unit tests |
-| **TICKET-06** | `[ ] Pending` | `documents` & Celery | Celery async worker, ingestion task, local embedding generation, Groq clause extraction & telemetry |
-| **TICKET-07** | `[ ] Pending` | `search` | Hybrid Search service (Dense pgvector + tsvector FTS fused via RRF $k=60$) & tests |
-| **TICKET-08** | `[ ] Pending` | `query` | Groq SSE Streaming Endpoint (`StreamingHttpResponse`), citation injection, telemetry |
-| **TICKET-09** | `[ ] Pending` | `frontend` | React 18+ Vite + Tailwind initialization, auth context, TanStack Query client |
-| **TICKET-10** | `[ ] Pending` | `frontend` | PDF.js split-pane viewer with dynamic bounding-box canvas highlight overlays |
-| **TICKET-11** | `[ ] Pending` | `frontend` | SSE streaming chat interface with interactive citation badges syncing to viewer |
-| **TICKET-12** | `[ ] Pending` | `scripts` & Analytics | Benchmark automation (`run_benchmark_suite.py`) & metrics export (`export_metrics.py`) |
+| **TICKET-06** | `[x] Complete` | `documents` & Celery | Celery async worker, ingestion task, local embedding generation, Groq clause extraction & telemetry |
+| **TICKET-07** | `[x] Complete` | `search` | Hybrid Search service (Dense pgvector + tsvector FTS fused via RRF $k=60$) & tests |
+| **TICKET-08** | `[x] Complete` | `query` | Groq SSE Streaming Endpoint (`StreamingHttpResponse`), citation injection, telemetry |
+| **TICKET-09** | `[x] Complete` | `frontend` | React 18+ Vite + Tailwind initialization, auth context, TanStack Query client |
+| **TICKET-10** | `[x] Complete` | `frontend` | PDF.js split-pane viewer with dynamic bounding-box canvas highlight overlays |
+| **TICKET-11** | `[x] Complete` | `frontend` | SSE streaming chat interface with interactive citation badges syncing to viewer |
+| **TICKET-12** | `[x] Complete` | `frontend` & Telemetry | High-density telemetry dashboard, pipeline latency analytics, token economics & ROI cards |
+| **TICKET-13** | `[x] Complete` | System Integration | Full-pipeline E2E test suite, ingestion-to-synthesis verification, and Phase 1 release sign-off |
 
 ---
 
@@ -238,3 +239,24 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
   - `npm --prefix frontend run typecheck`
   - `npm --prefix frontend run lint`
   - `npm --prefix frontend test -- --run`
+
+---
+
+### TICKET-13: End-to-End Integration Test Suite, Ingestion-to-Synthesis Workflow Verification, and Phase 1 Release Sign-Off
+- **Status**: `[x] Complete`
+- **Scope**: Implement full-pipeline integration test suite exercising the end-to-end critical path: user registration and HttpOnly cookie issuance, multi-page synthetic PDF document upload and asynchronous ingestion task execution, pgvector dense + tsvector sparse hybrid RRF search, Groq SSE streaming answer synthesis, deterministic citation verification with high confidence scoring, and aggregate benchmark telemetry validation across all 6 core pipeline stages. Implement comprehensive frontend integration test exercising operator login, document selection, query submission, token streaming render, and one-click citation synchronization to PDF viewer canvas page navigation and active bounding box highlighting.
+- **Files**:
+  - `tests/backend/test_ticket_13_e2e.py`
+  - `frontend/src/tests/e2e_flow.test.jsx`
+  - `scripts/harness-check.ps1`
+  - `.agent/ERRORS.md`
+  - `.agent/TASKS.md`
+- **Verification Gate**:
+  - `mypy backend`
+  - `flake8 backend`
+  - `pytest tests/backend -v --tb=short`
+  - `npm --prefix frontend run typecheck`
+  - `npm --prefix frontend run lint`
+  - `npm --prefix frontend test -- --run`
+  - `npm --prefix frontend run build`
+  - `powershell -ExecutionPolicy Bypass -File ./scripts/harness-check.ps1`
