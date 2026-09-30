@@ -38,8 +38,9 @@ class DocumentUploadView(APIView):
         try:
             from apps.documents.tasks import process_document_pipeline
             process_document_pipeline.delay(str(document.id))
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning("Failed to dispatch Celery ingestion task: %s", exc)
 
         response_serializer = DocumentDetailSerializer(document)
         return Response(

@@ -107,24 +107,21 @@ class CitationVerifyView(APIView):
         raw_chunks = data["chunks"]
 
         # Convert chunk dicts to SearchResult format
-        search_chunks = []
-        for c in raw_chunks:
-            doc_id_val = c.get("document_id")
-            doc_id = UUID(str(doc_id_val)) if doc_id_val else uuid4()
-            search_chunks.append(
-                SearchResult(
-                    chunk_id=doc_id,
-                    document_id=doc_id,
-                    document_title=str(c.get("document_title", "Document")),
-                    page_number=int(c.get("page_number", 1)),
-                    chunk_index=int(c.get("chunk_index", 0)),
-                    text_content=str(c["text_content"]),
-                    bounding_box=c.get("bounding_box", {}),
-                    dense_rank=1,
-                    sparse_rank=1,
-                    rrf_score=1.0,
-                )
+        search_chunks = [
+            SearchResult(
+                chunk_id=UUID(str(c.get("document_id"))) if c.get("document_id") else uuid4(),
+                document_id=UUID(str(c.get("document_id"))) if c.get("document_id") else uuid4(),
+                document_title=str(c.get("document_title", "Document")),
+                page_number=int(c.get("page_number", 1)),
+                chunk_index=int(c.get("chunk_index", 0)),
+                text_content=str(c["text_content"]),
+                bounding_box=c.get("bounding_box", {}),
+                dense_rank=1,
+                sparse_rank=1,
+                rrf_score=1.0,
             )
+            for c in raw_chunks
+        ]
 
         validator = CitationValidator()
         results = validator.verify_synthesis(synthesis_text, search_chunks)

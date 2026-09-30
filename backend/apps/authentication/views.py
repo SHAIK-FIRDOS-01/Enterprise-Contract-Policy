@@ -22,12 +22,11 @@ from apps.authentication.serializers import (
 def _get_cookie_samesite() -> Literal["Lax", "Strict", "None"]:
     """Resolve strongly-typed samesite configuration from settings."""
     simple_jwt = getattr(settings, "SIMPLE_JWT", {})
-    raw_samesite = str(simple_jwt.get("AUTH_COOKIE_SAMESITE", "Lax")).strip().lower()
-    if raw_samesite == "strict":
-        return "Strict"
-    if raw_samesite == "none":
-        return "None"
-    return "Lax"
+    val = str(simple_jwt.get("AUTH_COOKIE_SAMESITE", "Lax")).strip().capitalize()
+    return cast(
+        Literal["Lax", "Strict", "None"],
+        val if val in ("Lax", "Strict", "None") else "Lax",
+    )
 
 
 def set_jwt_cookies(

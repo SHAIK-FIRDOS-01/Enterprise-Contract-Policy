@@ -54,16 +54,23 @@ class DocumentUploadSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=255, required=False)
 
     def validate_file(self, file: Any) -> Any:
-        # Validate MIME type or extension
-        content_type = getattr(file, "content_type", "")
+        # Validate file extension
         filename = getattr(file, "name", "").lower()
-        if content_type != "application/pdf" and not filename.endswith(".pdf"):
-            raise serializers.ValidationError("Only PDF documents (application/pdf) are supported.")
+        if not filename.endswith(".pdf"):
+            raise serializers.ValidationError("Only PDF documents (.pdf) are supported.")
 
         # Validate file size (max 25MB)
         if file.size > MAX_FILE_SIZE_BYTES:
             raise serializers.ValidationError(
                 f"File size exceeds the 25MB maximum limit ({file.size} bytes)."
+            )
+
+        # Validate PDF magic header bytes (%PDF-)
+        header = file.read(5)
+        file.seek(0)
+        if not header.startswith(b"%PDF-"):
+            raise serializers.ValidationError(
+                "Invalid PDF document: File missing '%PDF-' header signature."
             )
 
         return file

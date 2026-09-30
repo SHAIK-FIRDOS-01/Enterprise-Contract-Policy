@@ -30,14 +30,19 @@ class RegisterSerializer(serializers.Serializer):
         role_map = {
             "COMPLIANCE_OFFICER": UserRole.AUDITOR,
             "LEGAL_COUNSEL": UserRole.AUDITOR,
-            "ADMINISTRATOR": UserRole.ADMIN,
+            "AUDITOR": UserRole.AUDITOR,
+            "VIEWER": UserRole.VIEWER,
         }
         normalized = value.strip().upper() if value else UserRole.AUDITOR
+        if normalized in ("ADMIN", "ADMINISTRATOR"):
+            raise serializers.ValidationError(
+                "Administrative privileges cannot be assigned via public registration."
+            )
         resolved = role_map.get(normalized, normalized)
-        valid_roles = [choice[0] for choice in UserRole.choices]
+        valid_roles = [UserRole.AUDITOR, UserRole.VIEWER]
         if resolved not in valid_roles:
             raise serializers.ValidationError(
-                f"Invalid role '{value}'. Allowed roles: {valid_roles}"
+                f"Invalid role '{value}'. Allowed registration roles: {valid_roles}"
             )
         return resolved
 

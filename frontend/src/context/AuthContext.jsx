@@ -4,21 +4,15 @@ import { authApi, subscribeToAuthFailure } from '../services/api';
 const AuthContext = createContext(null);
 
 const extractErrorMessage = (err, fallback = 'Operation failed') => {
-  if (!err) return fallback;
-  const resData = err.response?.data;
-  if (!resData) return err.message || fallback;
-  if (typeof resData === 'string') return resData;
-  if (resData.detail) return resData.detail;
-  if (resData.error) return resData.error;
-  if (resData.message) return resData.message;
-  if (typeof resData === 'object') {
-    const messages = Object.entries(resData)
-      .map(([field, errs]) => {
-        const msg = Array.isArray(errs) ? errs.join(' ') : String(errs);
-        return field === 'non_field_errors' ? msg : `${field}: ${msg}`;
-      })
+  const data = err?.response?.data;
+  if (!data) return err?.message || fallback;
+  if (typeof data === 'string') return data;
+  if (data.detail || data.error || data.message) return data.detail || data.error || data.message;
+  if (typeof data === 'object') {
+    const msgs = Object.entries(data)
+      .map(([k, v]) => `${k === 'non_field_errors' ? '' : k + ': '}${Array.isArray(v) ? v.join(' ') : v}`)
       .filter(Boolean);
-    if (messages.length > 0) return messages.join('; ');
+    if (msgs.length) return msgs.join('; ');
   }
   return err.message || fallback;
 };

@@ -42,15 +42,15 @@ class BenchmarksSummaryView(APIView):
             .order_by("operation")
         )
 
-        operations_breakdown: Dict[str, Dict[str, Any]] = {}
-        for entry in breakdown_qs:
-            op_name = entry["operation"]
-            operations_breakdown[op_name] = {
+        operations_breakdown: Dict[str, Dict[str, Any]] = {
+            entry["operation"]: {
                 "count": entry["count"],
                 "avg_duration_ms": round(entry["avg_duration_ms"] or 0.0, 2),
                 "total_tokens": entry["total_tokens"] or 0,
                 "total_cost_usd": str(entry["total_cost_usd"] or Decimal("0.000000")),
             }
+            for entry in breakdown_qs
+        }
 
         success_rate = (successful_ops / total_ops) if total_ops > 0 else 1.0
 
