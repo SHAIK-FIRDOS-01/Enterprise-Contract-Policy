@@ -17,6 +17,14 @@ GROQ_RATE_TABLE: Dict[str, Dict[str, Decimal]] = {
         "prompt": Decimal("0.59"),
         "completion": Decimal("0.79"),
     },
+    "qwen/qwen3.8-27b": {
+        "prompt": Decimal("0.59"),
+        "completion": Decimal("0.79"),
+    },
+    "openai/gpt-oss-120b": {
+        "prompt": Decimal("0.59"),
+        "completion": Decimal("0.79"),
+    },
     "llama-3.1-70b-versatile": {
         "prompt": Decimal("0.59"),
         "completion": Decimal("0.79"),

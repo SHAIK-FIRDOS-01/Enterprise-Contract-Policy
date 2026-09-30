@@ -40,7 +40,11 @@ class GroqSynthesisService:
     ) -> None:
         self.model_name = str(
             model_name
-            or getattr(settings, "GROQ_MODEL_NAME", "llama-3.3-70b-versatile")
+            or getattr(
+                settings,
+                "GROQ_MODEL",
+                getattr(settings, "GROQ_MODEL_NAME", "qwen/qwen3.8-27b"),
+            )
         )
         self.api_key = str(getattr(settings, "GROQ_API_KEY", ""))
         self._client = client

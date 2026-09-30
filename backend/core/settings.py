@@ -175,7 +175,8 @@ CELERY_TIMEZONE = TIME_ZONE
 
 # Groq LLM Configuration
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
+GROQ_MODEL_NAME = GROQ_MODEL
 
 # Embedding Configuration (HuggingFace / local)
 EMBEDDING_MODEL_NAME = os.getenv(
