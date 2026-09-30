@@ -250,3 +250,39 @@ def test_user_data_isolation() -> None:
     # 3. User B tries to fetch doc_a chunks -> 404 Not Found
     chunks_res = client.get(f"/api/documents/{doc_a.id}/chunks/")
     assert chunks_res.status_code == 404
+
+
+@pytest.mark.django_db
+def test_media_file_serving_under_debug(settings: Any) -> None:
+    """Test 6: Verify Django serves media files from MEDIA_ROOT under MEDIA_URL when DEBUG=True."""
+    import importlib
+    from django.urls import clear_url_caches
+    import core.urls
+
+    settings.DEBUG = True
+    importlib.reload(core.urls)
+    clear_url_caches()
+
+    user = User.objects.create_user(email="media_test@enterprise.com", password="Password123!")
+    pdf_content = b"%PDF-1.4 test document content"
+    uploaded_file = SimpleUploadedFile("test_contract.pdf", pdf_content, content_type="application/pdf")
+
+    doc = Document.objects.create(
+        user=user,
+        title="test_contract.pdf",
+        file=uploaded_file,
+        file_hash="hash_media_test",
+    )
+    assert doc.file.name is not None
+
+    client = APIClient()
+    media_url = doc.file.url
+    response = client.get(media_url)
+    assert response.status_code == 200
+    assert b"".join(response.streaming_content) == pdf_content
+
+    # Clean up test file from disk
+    if doc.file and doc.file.storage.exists(doc.file.name):
+        doc.file.storage.delete(doc.file.name)
+
+

@@ -226,6 +226,7 @@ def test_query_stream_sse_protocol_events(monkeypatch: pytest.MonkeyPatch) -> No
         "/api/query/stream/",
         data={"query": "liability cap", "top_k": 2},
         format="json",
+        HTTP_ACCEPT="text/event-stream",
     )
 
     assert response.status_code == 200
