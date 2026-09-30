@@ -177,7 +177,6 @@ class GroqSynthesisService:
                 messages=messages,
                 temperature=temperature,
                 stream=True,
-                stream_options={"include_usage": True},
             )
 
             accumulated_text: List[str] = []
