@@ -52,6 +52,7 @@ describe('Ticket 13: Frontend End-to-End Workstation Flow Verification', () => {
             })),
             render: vi.fn(() => ({
               promise: Promise.resolve(),
+              cancel: vi.fn(),
             })),
           })
         ),

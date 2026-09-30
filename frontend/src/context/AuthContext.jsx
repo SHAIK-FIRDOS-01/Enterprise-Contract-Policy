@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { authApi, subscribeToAuthFailure } from '../services/api';
 
 const AuthContext = createContext(null);
@@ -28,26 +28,38 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const authInFlightRef = useRef(null);
 
   const checkAuth = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const data = await authApi.getMe();
-      const userData = data?.user || (data?.email ? data : null);
-      if (userData) {
-        setUser(userData);
-        setIsAuthenticated(true);
-      } else {
+    if (authInFlightRef.current) {
+      return authInFlightRef.current;
+    }
+
+    const runCheck = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const data = await authApi.getMe();
+        const userData = data?.user || (data?.email ? data : null);
+        if (userData) {
+          setUser(userData);
+          setIsAuthenticated(true);
+        } else {
+          setUser(null);
+          setIsAuthenticated(false);
+        }
+      } catch (err) {
+        // A 401 or network error on /api/auth/me/ during bootstrap cleanly indicates an unauthenticated session
         setUser(null);
         setIsAuthenticated(false);
+      } finally {
+        setIsLoading(false);
+        authInFlightRef.current = null;
       }
-    } catch (err) {
-      setUser(null);
-      setIsAuthenticated(false);
-    } finally {
-      setIsLoading(false);
-    }
+    };
+
+    authInFlightRef.current = runCheck();
+    return authInFlightRef.current;
   }, []);
 
   useEffect(() => {

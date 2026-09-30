@@ -21,6 +21,7 @@ export default function PDFViewer({
 }) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
+  const renderTaskRef = useRef(null);
 
   const [pdfDoc, setPdfDoc] = useState(null);
   const [numPages, setNumPages] = useState(1);
@@ -30,9 +31,23 @@ export default function PDFViewer({
   const [originalPageDimensions, setOriginalPageDimensions] = useState({ width: 612, height: 792 });
   const [showHighlights, setShowHighlights] = useState(true);
 
+  const cancelInFlightRender = useCallback(() => {
+    if (renderTaskRef.current) {
+      try {
+        if (typeof renderTaskRef.current.cancel === 'function') {
+          renderTaskRef.current.cancel();
+        }
+      } catch {
+        // ignore cancellation
+      }
+      renderTaskRef.current = null;
+    }
+  }, []);
+
   // Load PDF Document when fileUrl changes
   useEffect(() => {
     if (!fileUrl) {
+      cancelInFlightRender();
       setPdfDoc(null);
       setNumPages(1);
       return;
@@ -41,6 +56,7 @@ export default function PDFViewer({
     let isMounted = true;
     setIsLoading(true);
     setRenderError(null);
+    cancelInFlightRender();
 
     const loadingTask = pdfjsLib.getDocument({
       url: fileUrl,
@@ -62,29 +78,30 @@ export default function PDFViewer({
 
     return () => {
       isMounted = false;
+      cancelInFlightRender();
       try {
         loadingTask.destroy();
       } catch {
         // ignore cancellation
       }
     };
-  }, [fileUrl]);
+  }, [fileUrl, cancelInFlightRender]);
 
   // Render current active page to canvas with high-DPI awareness
   const renderPage = useCallback(async () => {
+    cancelInFlightRender();
+
     if (!pdfDoc || !canvasRef.current) return;
 
     try {
       const pageToRender = Math.max(1, Math.min(activePage, numPages));
       const page = await pdfDoc.getPage(pageToRender);
 
+      // Verify canvas still mounted after async page retrieval
+      if (!canvasRef.current) return;
+
       // Determine viewport scale based on base viewport and zoom scale
       const unscaledViewport = page.getViewport({ scale: 1.0 });
-      setOriginalPageDimensions({
-        width: unscaledViewport.width,
-        height: unscaledViewport.height,
-      });
-
       const viewport = page.getViewport({ scale });
       const canvas = canvasRef.current;
       const context = canvas.getContext('2d');
@@ -104,7 +121,7 @@ export default function PDFViewer({
       canvas.style.width = `${layoutWidth}px`;
       canvas.style.height = `${layoutHeight}px`;
 
-      setCanvasDimensions({ width: layoutWidth, height: layoutHeight });
+      context.clearRect(0, 0, canvas.width, canvas.height);
 
       // Render at high-DPI resolution to internal buffer
       const renderViewport = page.getViewport({ scale: scale * dpr });
@@ -113,19 +130,40 @@ export default function PDFViewer({
         viewport: renderViewport,
       };
 
-      await page.render(renderContext).promise;
+      const renderTask = page.render(renderContext);
+      renderTaskRef.current = renderTask;
+
+      await renderTask.promise;
+      renderTaskRef.current = null;
+
+      // Ensure coordinate measuring and dimensions only execute after the render task resolves
+      setCanvasDimensions({ width: layoutWidth, height: layoutHeight });
+      setOriginalPageDimensions({
+        width: unscaledViewport.width,
+        height: unscaledViewport.height,
+      });
       setRenderError(null);
     } catch (err) {
-      // Avoid reporting cancelled renders
-      if (err.name !== 'RenderingCancelledException') {
-        setRenderError(`Page render error: ${err.message}`);
+      // Avoid reporting cancelled renders or DOM detachment during in-flight cancellation
+      const isCancelled =
+        err?.name === 'RenderingCancelledException' ||
+        err?.message?.includes('Rendering cancelled') ||
+        err?.message?.includes('cancelled');
+
+      if (!isCancelled) {
+        setRenderError(`Page render error: ${err?.message || 'Rendering error'}`);
       }
+    } finally {
+      renderTaskRef.current = null;
     }
-  }, [pdfDoc, activePage, numPages, scale]);
+  }, [pdfDoc, activePage, numPages, scale, cancelInFlightRender]);
 
   useEffect(() => {
     renderPage();
-  }, [renderPage]);
+    return () => {
+      cancelInFlightRender();
+    };
+  }, [renderPage, cancelInFlightRender]);
 
   // ResizeObserver on viewer container for smooth layout updates on window/pane resize
   useEffect(() => {

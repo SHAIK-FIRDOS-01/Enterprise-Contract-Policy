@@ -25,8 +25,13 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    // Notify listeners if request failed with 401 Unauthorized and not already retrying
-    if (error.response?.status === 401 && !originalRequest?._retry) {
+    // Notify listeners if request failed with 401 Unauthorized, not already retrying,
+    // and not an initial bootstrap check on /api/auth/me/
+    if (
+      error.response?.status === 401 &&
+      !originalRequest?._retry &&
+      !originalRequest?.url?.includes('/api/auth/me/')
+    ) {
       originalRequest._retry = true;
       authListeners.forEach((callback) => callback(error));
     }

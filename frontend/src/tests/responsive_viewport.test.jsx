@@ -62,6 +62,7 @@ describe('Ticket 14-R: Responsive Web Layout, High-DPI Coordinate Normalization,
             })),
             render: vi.fn(() => ({
               promise: Promise.resolve(),
+              cancel: vi.fn(),
             })),
           })
         ),
