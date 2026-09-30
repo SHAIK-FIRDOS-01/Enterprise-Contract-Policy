@@ -23,6 +23,7 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
 | **TICKET-11** | `[x] Complete` | `frontend` | SSE streaming chat interface with interactive citation badges syncing to viewer |
 | **TICKET-12** | `[x] Complete` | `frontend` & Telemetry | High-density telemetry dashboard, pipeline latency analytics, token economics & ROI cards |
 | **TICKET-13** | `[x] Complete` | System Integration | Full-pipeline E2E test suite, ingestion-to-synthesis verification, and Phase 1 release sign-off |
+| **TICKET-14-RESPONSIVE** | `[x] Complete` | `frontend` | Responsive Web Layout, High-DPI Canvas Coordinate Normalization, and Adaptive Split-Pane Ergonomics |
 
 ---
 
@@ -260,3 +261,34 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
   - `npm --prefix frontend test -- --run`
   - `npm --prefix frontend run build`
   - `powershell -ExecutionPolicy Bypass -File ./scripts/harness-check.ps1`
+
+---
+
+### TICKET-14-RESPONSIVE: Responsive Web Layout, High-DPI Canvas Coordinate Normalization, and Adaptive Split-Pane Ergonomics
+- **Status**: `[x] Complete`
+- **Scope**: Implement institutional viewport responsiveness and DPI-aware canvas normalization across the workstation frontend:
+  1. High-DPI coordinate normalization decoupling hardware canvas buffer scaling (`viewport.scale * window.devicePixelRatio`) from CSS layout dimensions (`canvas.style.width/height`, `getBoundingClientRect()`), container `ResizeObserver` listener, and robust coordinate transforms guarding against initial render 0/null/negative box dimensions.
+  2. Institutional responsive viewport hook (`useResponsiveViewport`) and adaptive segmented view controls (`[1] DOCUMENT VIEWER | [2] AUDIT COPILOT | [3] CITATIONS`) on compact viewports with automatic tab transition on citation badge click.
+  3. Responsive top navigation ticker, sleek mobile bottom dock, and responsive telemetry grid layouts (`grid-cols-1 md:grid-cols-2 lg:grid-cols-4`).
+- **Files**:
+  - `frontend/src/utils/coordinates.js`
+  - `frontend/src/hooks/useResponsiveViewport.js`
+  - `frontend/src/components/viewer/PDFViewer.jsx`
+  - `frontend/src/pages/workspace/WorkspacePage.jsx`
+  - `frontend/src/components/layout/TopNav.jsx`
+  - `frontend/src/components/layout/SidebarNav.jsx`
+  - `frontend/src/components/layout/ProtectedLayout.jsx`
+  - `frontend/src/pages/telemetry/TelemetryPage.jsx`
+  - `frontend/src/components/telemetry/PipelineLatencyBreakdown.jsx`
+  - `frontend/src/components/telemetry/TokenCostAnalytics.jsx`
+  - `frontend/src/components/telemetry/DualSystemRoiCard.jsx`
+  - `frontend/src/tests/responsive_viewport.test.jsx`
+- **Verification Gate**:
+  - `npm --prefix frontend run lint`
+  - `npm --prefix frontend test -- --run`
+  - `npm --prefix frontend run build`
+  - `mypy backend`
+  - `flake8 backend`
+  - `pytest tests/backend -q --tb=short`
+  - `powershell -ExecutionPolicy Bypass -File ./scripts/harness-check.ps1`
+

@@ -4,9 +4,9 @@ import { useAuth } from '../../context/AuthContext';
 import { Terminal, Lock, Mail, Shield, AlertCircle, ArrowRight } from 'lucide-react';
 
 const ROLES = [
-  { value: 'AUDITOR', label: 'Auditor (Read, Review & Query)' },
-  { value: 'COMPLIANCE_OFFICER', label: 'Compliance Officer (Risk Analysis)' },
-  { value: 'LEGAL_COUNSEL', label: 'Legal Counsel (Full Contract Authority)' },
+  { value: 'AUDITOR', label: 'Compliance Auditor (Review, Query & Verify)' },
+  { value: 'VIEWER', label: 'Document Viewer (Read Only)' },
+  { value: 'ADMIN', label: 'Administrator (Full Authority)' },
 ];
 
 export const RegisterPage = () => {

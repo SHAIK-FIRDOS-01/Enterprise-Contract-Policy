@@ -3,6 +3,26 @@ import { authApi, subscribeToAuthFailure } from '../services/api';
 
 const AuthContext = createContext(null);
 
+const extractErrorMessage = (err, fallback = 'Operation failed') => {
+  if (!err) return fallback;
+  const resData = err.response?.data;
+  if (!resData) return err.message || fallback;
+  if (typeof resData === 'string') return resData;
+  if (resData.detail) return resData.detail;
+  if (resData.error) return resData.error;
+  if (resData.message) return resData.message;
+  if (typeof resData === 'object') {
+    const messages = Object.entries(resData)
+      .map(([field, errs]) => {
+        const msg = Array.isArray(errs) ? errs.join(' ') : String(errs);
+        return field === 'non_field_errors' ? msg : `${field}: ${msg}`;
+      })
+      .filter(Boolean);
+    if (messages.length > 0) return messages.join('; ');
+  }
+  return err.message || fallback;
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -14,8 +34,9 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(true);
       setError(null);
       const data = await authApi.getMe();
-      if (data?.user) {
-        setUser(data.user);
+      const userData = data?.user || (data?.email ? data : null);
+      if (userData) {
+        setUser(userData);
         setIsAuthenticated(true);
       } else {
         setUser(null);
@@ -46,14 +67,15 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(true);
       setError(null);
       const data = await authApi.login({ email, password });
-      if (data?.user) {
-        setUser(data.user);
+      const userData = data?.user || (data?.email ? data : null);
+      if (userData) {
+        setUser(userData);
         setIsAuthenticated(true);
-        return { success: true, user: data.user };
+        return { success: true, user: userData };
       }
       throw new Error('Invalid user payload received');
     } catch (err) {
-      const errMsg = err.response?.data?.detail || err.response?.data?.error || err.message || 'Login failed';
+      const errMsg = extractErrorMessage(err, 'Login failed');
       setError(errMsg);
       setIsAuthenticated(false);
       setUser(null);
@@ -68,13 +90,14 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(true);
       setError(null);
       const data = await authApi.register({ email, password, role });
-      if (data?.user) {
+      const userData = data?.user || (data?.email ? data : null);
+      if (userData) {
         // Automatically login after successful registration
         return await login({ email, password });
       }
       return { success: true };
     } catch (err) {
-      const errMsg = err.response?.data?.detail || err.response?.data?.error || err.message || 'Registration failed';
+      const errMsg = extractErrorMessage(err, 'Registration failed');
       setError(errMsg);
       return { success: false, error: errMsg };
     } finally {

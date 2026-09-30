@@ -36,7 +36,7 @@ api.interceptors.response.use(
 
 export const authApi = {
   login: async ({ email, password }) => {
-    const response = await api.post('/api/auth/token/', { email, password });
+    const response = await api.post('/api/auth/login/', { email, password });
     return response.data;
   },
   register: async ({ email, password, role }) => {
@@ -52,7 +52,7 @@ export const authApi = {
     return response.data;
   },
   refreshToken: async () => {
-    const response = await api.post('/api/auth/token/refresh/');
+    const response = await api.post('/api/auth/refresh/');
     return response.data;
   },
 };

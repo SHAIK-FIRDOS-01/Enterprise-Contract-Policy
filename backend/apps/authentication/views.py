@@ -229,4 +229,6 @@ class CurrentUserView(APIView):
 
     def get(self, request: Request) -> Response:
         serializer = UserSerializer(request.user)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        data = dict(serializer.data)
+        data["user"] = serializer.data
+        return Response(data, status=status.HTTP_200_OK)

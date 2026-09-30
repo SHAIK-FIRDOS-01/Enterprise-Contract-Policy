@@ -47,7 +47,7 @@ export default function DualSystemRoiCard({ economics = {} }) {
 
   return (
     <div className="p-4 rounded border border-zinc-800 bg-zinc-900/50 space-y-4 font-sans select-none">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h3 className="text-xs font-mono font-semibold uppercase tracking-wider text-zinc-200 flex items-center gap-1.5">
             <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
@@ -102,7 +102,7 @@ export default function DualSystemRoiCard({ economics = {} }) {
       </div>
 
       {/* Summary ROI Metrics Ribbon */}
-      <div className="grid grid-cols-3 gap-3 font-mono text-xs">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 font-mono text-xs">
         <div className="p-3 rounded bg-zinc-950 border border-zinc-800">
           <div className="text-[10px] text-zinc-500 uppercase">MANUAL REVIEW BASELINE</div>
           <div className="text-base font-bold text-zinc-300 tabular-nums mt-0.5">

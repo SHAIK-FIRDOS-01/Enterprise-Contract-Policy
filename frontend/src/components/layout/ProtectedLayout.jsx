@@ -33,7 +33,7 @@ export const ProtectedLayout = () => {
       <TopNav />
       <div className="flex flex-1 overflow-hidden">
         <SidebarNav />
-        <main className="flex-1 overflow-y-auto bg-zinc-950 p-6">
+        <main className="flex-1 overflow-y-auto bg-zinc-950 p-3 sm:p-4 md:p-6 pb-20 md:pb-6">
           <Outlet />
         </main>
       </div>

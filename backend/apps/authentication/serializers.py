@@ -24,7 +24,22 @@ class RegisterSerializer(serializers.Serializer):
     """User registration serializer enforcing email uniqueness and strong passwords."""
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, min_length=8)
-    role = serializers.ChoiceField(choices=UserRole.choices, default=UserRole.AUDITOR)
+    role = serializers.CharField(required=False, default=UserRole.AUDITOR)
+
+    def validate_role(self, value: str) -> str:
+        role_map = {
+            "COMPLIANCE_OFFICER": UserRole.AUDITOR,
+            "LEGAL_COUNSEL": UserRole.AUDITOR,
+            "ADMINISTRATOR": UserRole.ADMIN,
+        }
+        normalized = value.strip().upper() if value else UserRole.AUDITOR
+        resolved = role_map.get(normalized, normalized)
+        valid_roles = [choice[0] for choice in UserRole.choices]
+        if resolved not in valid_roles:
+            raise serializers.ValidationError(
+                f"Invalid role '{value}'. Allowed roles: {valid_roles}"
+            )
+        return resolved
 
     def validate_email(self, value: str) -> str:
         normalized = value.strip().lower()

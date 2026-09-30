@@ -51,7 +51,7 @@ export default function PipelineLatencyBreakdown({ operationsBreakdown = {} }) {
 
   return (
     <div className="p-4 rounded border border-zinc-800 bg-zinc-900/50 space-y-4 font-sans select-none">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <h3 className="text-xs font-mono font-semibold uppercase tracking-wider text-zinc-200 flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5 text-zinc-400" />
@@ -62,7 +62,7 @@ export default function PipelineLatencyBreakdown({ operationsBreakdown = {} }) {
           </p>
         </div>
 
-        <div className="text-right">
+        <div className="text-left sm:text-right">
           <div className="text-lg font-mono font-bold text-zinc-100 tabular-nums">
             {totalDurationMs.toFixed(1)}ms
           </div>
@@ -93,7 +93,7 @@ export default function PipelineLatencyBreakdown({ operationsBreakdown = {} }) {
       </div>
 
       {/* Stage Breakdown Readout Table */}
-      <div className="grid grid-cols-5 gap-2 pt-1 font-mono text-[11px]">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 pt-1 font-mono text-[11px]">
         {STAGES.map((stage) => {
           const opData = operationsBreakdown[stage.key];
           const duration = Number(opData?.avg_duration_ms || 0);

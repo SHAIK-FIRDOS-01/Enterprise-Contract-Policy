@@ -102,7 +102,7 @@ export default function TelemetryPage() {
   return (
     <div className="h-full flex flex-col bg-zinc-950 text-zinc-100 font-sans overflow-y-auto select-none">
       {/* Telemetry Header */}
-      <div className="px-6 py-4 border-b border-zinc-800 bg-zinc-900/40 flex items-center justify-between">
+      <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-zinc-800 bg-zinc-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
             <Activity className="w-4 h-4 text-emerald-400" />
@@ -157,9 +157,9 @@ export default function TelemetryPage() {
       </div>
 
       {/* Main Content Area */}
-      <div className="p-6 space-y-6">
+      <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
         {/* Metric Summary Cards Grid */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <MetricStatCard
             label="PIPELINE INVOCATIONS"
             value={totalOps.toLocaleString()}

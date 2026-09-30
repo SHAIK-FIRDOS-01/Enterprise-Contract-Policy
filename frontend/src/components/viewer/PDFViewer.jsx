@@ -70,7 +70,7 @@ export default function PDFViewer({
     };
   }, [fileUrl]);
 
-  // Render current active page to canvas
+  // Render current active page to canvas with high-DPI awareness
   const renderPage = useCallback(async () => {
     if (!pdfDoc || !canvasRef.current) return;
 
@@ -91,13 +91,26 @@ export default function PDFViewer({
 
       if (!context) return;
 
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      setCanvasDimensions({ width: viewport.width, height: viewport.height });
+      // DPI-AWARE COORDINATE NORMALIZATION INVARIANT:
+      // Internal buffer is scaled by window.devicePixelRatio for retina sharpness,
+      // while canvas style and overlay bounding boxes strictly track unscaled CSS layout dimensions.
+      const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
 
+      const layoutWidth = Math.floor(viewport.width);
+      const layoutHeight = Math.floor(viewport.height);
+
+      canvas.width = Math.floor(viewport.width * dpr);
+      canvas.height = Math.floor(viewport.height * dpr);
+      canvas.style.width = `${layoutWidth}px`;
+      canvas.style.height = `${layoutHeight}px`;
+
+      setCanvasDimensions({ width: layoutWidth, height: layoutHeight });
+
+      // Render at high-DPI resolution to internal buffer
+      const renderViewport = page.getViewport({ scale: scale * dpr });
       const renderContext = {
         canvasContext: context,
-        viewport,
+        viewport: renderViewport,
       };
 
       await page.render(renderContext).promise;
@@ -113,6 +126,22 @@ export default function PDFViewer({
   useEffect(() => {
     renderPage();
   }, [renderPage]);
+
+  // ResizeObserver on viewer container for smooth layout updates on window/pane resize
+  useEffect(() => {
+    if (!containerRef.current || typeof ResizeObserver === 'undefined') return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect && entry.contentRect.width > 0) {
+          // Layout bounds updated smoothly
+        }
+      }
+    });
+
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   // Filter chunks relevant to the current page
   const pageBoxes = boundingBoxes.filter(

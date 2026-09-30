@@ -38,7 +38,7 @@ export default function TokenCostAnalytics({ totals = {}, operationsBreakdown = 
       </div>
 
       {/* Numerical Metrics Grid */}
-      <div className="grid grid-cols-4 gap-3 font-mono text-xs">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 font-mono text-xs">
         <div className="p-3 rounded bg-zinc-950/70 border border-zinc-800/80">
           <div className="text-[10px] text-zinc-500 uppercase">TOTAL TOKENS</div>
           <div className="text-lg font-bold text-zinc-100 tabular-nums mt-0.5">
@@ -73,7 +73,7 @@ export default function TokenCostAnalytics({ totals = {}, operationsBreakdown = 
       </div>
 
       {/* Model Roster & Architecture Specs */}
-      <div className="p-3 rounded bg-zinc-950 border border-zinc-800 flex items-center justify-between text-xs font-mono">
+      <div className="p-3 rounded bg-zinc-950 border border-zinc-800 flex flex-col md:flex-row md:items-center justify-between gap-2 text-xs font-mono">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 text-zinc-300">
             <Zap className="w-3.5 h-3.5 text-amber-400" />
