@@ -4,7 +4,7 @@ from django.http import HttpResponseBase, StreamingHttpResponse
 from rest_framework import status
 from rest_framework.negotiation import DefaultContentNegotiation
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.renderers import BaseRenderer, JSONRenderer
+from rest_framework.renderers import BaseRenderer
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -20,9 +20,8 @@ from apps.search.services.hybrid_search import HybridSearchService, SearchResult
 
 
 class ServerSentEventRenderer(BaseRenderer):
-    """Renderer supporting text/event-stream media type for Server-Sent Events."""
     media_type = "text/event-stream"
-    format = "txt"
+    format = "sse"
 
     def render(
         self,
@@ -33,32 +32,14 @@ class ServerSentEventRenderer(BaseRenderer):
         return data
 
 
-class SSEContentNegotiation(DefaultContentNegotiation):
-    """
-    Permissive content negotiation ensuring text/event-stream and application/json
-    requests are handled cleanly without raising 406 Not Acceptable.
-    """
+class IgnoreClientContentNegotiation(DefaultContentNegotiation):
     def select_renderer(
         self,
         request: Request,
         renderers: Iterable[BaseRenderer],
         format_suffix: Optional[str] = None,
     ) -> Tuple[BaseRenderer, str]:
-        renderer_list = list(renderers)
-        accept_header = request.META.get("HTTP_ACCEPT", "")
-        if "text/event-stream" in accept_header or "*/*" in accept_header or not accept_header:
-            for renderer in renderer_list:
-                if getattr(renderer, "media_type", "") == "text/event-stream":
-                    return (renderer, "text/event-stream")
-        try:
-            selected_renderer, media_type = super().select_renderer(
-                request, renderer_list, format_suffix=format_suffix
-            )
-            return (selected_renderer, str(media_type))
-        except Exception:
-            # Fallback to the first available renderer
-            fallback = renderer_list[0]
-            return (fallback, str(getattr(fallback, "media_type", "text/event-stream")))
+        return (ServerSentEventRenderer(), "text/event-stream")
 
 
 class StreamingQueryView(APIView):
@@ -67,9 +48,9 @@ class StreamingQueryView(APIView):
     Authenticates requesting user, retrieves top grounded context chunks via hybrid search,
     and streams synthesized answers with exact coordinate citations via Server-Sent Events (SSE).
     """
+    content_negotiation_class = IgnoreClientContentNegotiation
+    renderer_classes = [ServerSentEventRenderer]
     permission_classes = [IsAuthenticated]
-    renderer_classes = [ServerSentEventRenderer, JSONRenderer]
-    content_negotiation_class = SSEContentNegotiation
 
     def post(self, request: Request) -> HttpResponseBase:
         serializer = QueryRequestSerializer(data=request.data)
