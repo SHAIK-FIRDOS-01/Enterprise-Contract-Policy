@@ -292,3 +292,26 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
   - `pytest tests/backend -q --tb=short`
   - `powershell -ExecutionPolicy Bypass -File ./scripts/harness-check.ps1`
 
+---
+
+## Phase 2: Multi-Document Analysis & Distributed Query Processing
+
+### TICKET-15: Concurrent Multi-Document Worker Pool & Map Dispatcher
+- **Status**: `[x] Complete`
+- **Scope**: Implement `DocumentAuditWorker` and `ConcurrentMapDispatcher` for isolated, parallel multi-document RAG queries:
+  1. `apps/query/services/worker.py`: `DocumentAuditWorker` executing single-document bounded hybrid RRF search with strict SQL context isolation (`document_id = %(document_id)s`), extracting and normalizing bounding box coordinate evidence payloads.
+  2. `apps/query/services/dispatcher.py`: `ConcurrentMapDispatcher` utilizing bounded `ThreadPoolExecutor(max_workers=min(8, os.cpu_count()))`, per-worker timeout ceiling (250ms), thread-safe Django DB connection cleanup (`connections.close_all()`), and aggregating isolated per-document evidence bundles (`document_id`, `status`, `duration_ms`, `candidate_chunks`).
+  3. `tests/backend/test_ticket_15_dispatcher.py`: Concurrency and thread-safety test suite asserting zero cross-document context bleed, graceful timeout handling on simulated latency, and error resilience without pool failure.
+- **Files**:
+  - `backend/apps/query/services/worker.py`
+  - `backend/apps/query/services/dispatcher.py`
+  - `backend/apps/query/services/__init__.py`
+  - `tests/backend/test_ticket_15_dispatcher.py`
+- **Verification Gate**:
+  - `pytest tests/backend/test_ticket_15_dispatcher.py -v --tb=short`
+  - `flake8 backend`
+  - `mypy backend`
+  - `npm --prefix frontend run lint`
+  - `npm --prefix frontend test -- --run`
+  - `powershell -ExecutionPolicy Bypass -File ./scripts/harness-check.ps1`
+
