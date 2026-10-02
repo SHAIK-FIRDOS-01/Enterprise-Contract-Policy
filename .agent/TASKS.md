@@ -30,6 +30,7 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
 | **TICKET-18** | `[x] Complete` | `frontend` / Workspace | Multi-Document Workspace UI & Institutional A/B Mode Toggle |
 | **TICKET-19** | `[x] Complete` | `frontend` / Viewer | Split-Screen Synchronized Dual-PDF Viewer Canvas Engine |
 | **TICKET-20** | `[x] Complete` | `analytics` & `frontend` | A/B Comparative Telemetry, Concurrency Metrics & Cost/Latency ROI Dashboard |
+| **TICKET-21** | `[x] Complete` | System Integration | Full-System E2E Validation, Dual-Document Regression Sign-Off & Release Lock |
 
 ---
 
@@ -435,6 +436,30 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
 - **Verification Gate**:
   - `pytest tests/backend/test_ticket_20_ab_telemetry.py -v --tb=short`
   - `npm --prefix frontend test -- --run src/tests/ab_telemetry.test.jsx`
+  - `flake8 backend`
+  - `mypy backend`
+  - `npm --prefix frontend run lint`
+  - `npm --prefix frontend run build`
+  - `powershell -ExecutionPolicy Bypass -File ./scripts/harness-check.ps1`
+
+---
+
+### TICKET-21: Full-System E2E Validation, Dual-Document Regression Sign-Off & Release Lock
+- **Status**: `[x] Complete`
+- **Scope**: Final Phase 2 release lock and full-system end-to-end multi-document regression verification:
+  1. `tests/backend/test_ticket_21_multidoc_e2e.py`: Comprehensive backend E2E critical path test with synthetic ingestion of Doc A (FY25) and Doc B (FY26), concurrent isolated hybrid retrieval, dynamic gating (fast-path sub-60ms vs frontier reduce escalation), and telemetry log verification.
+  2. `frontend/src/tests/e2e_multidoc_flow.test.jsx`: Complete frontend user journey test with multi-doc selection, SSE streaming, split-viewer dual canvas coordination (Pane A cyan / Pane B amber highlights), and synchronized scroll toggle.
+  3. Release Hardening & Ponytail Audit: Clean up debug/print artifacts, document environment variables in `.env.example`, and author Phase 2 sign-off report in `docs/reports/PHASE_2_COMPLETION.md`.
+- **Files**:
+  - `tests/backend/test_ticket_21_multidoc_e2e.py`
+  - `frontend/src/tests/e2e_multidoc_flow.test.jsx`
+  - `.env.example`
+  - `docs/reports/PHASE_2_COMPLETION.md`
+- **Verification Gate**:
+  - `pytest tests/backend/test_ticket_21_multidoc_e2e.py -v --tb=short`
+  - `pytest tests/backend -v --tb=short`
+  - `npm --prefix frontend test -- --run src/tests/e2e_multidoc_flow.test.jsx`
+  - `npm --prefix frontend test -- --run`
   - `flake8 backend`
   - `mypy backend`
   - `npm --prefix frontend run lint`
