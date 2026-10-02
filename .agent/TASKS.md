@@ -336,3 +336,27 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
   - `npm --prefix frontend test -- --run`
   - `powershell -ExecutionPolicy Bypass -File ./scripts/harness-check.ps1`
 
+---
+
+### TICKET-17: Real-Time Multi-Target SSE Protocol & Stream Multiplexer
+- **Status**: `[x] Complete`
+- **Scope**: Implement `MultiTargetSSEMultiplexer` and multi-target streaming orchestration:
+  1. `apps/query/services/multiplexer.py`: `MultiTargetSSEMultiplexer` encoding standard SSE event taxonomy (`route`, `worker_status`, `citation`, `token`, `telemetry`, `done`) with double newline boundaries (`event: <type>\ndata: <json>\n\n`).
+  2. `apps/query/serializers.py` & `apps/query/views.py`: Extend `QueryRequestSerializer` to accept `document_ids: list[UUID]` (1 to 8 documents). Orchestrate `ConcurrentMapDispatcher`, `ConfidenceGater`, fast-path instant delivery, and `MultiDocReduceSynthesizer` in `StreamingQueryView`.
+  3. `frontend/src/services/streaming.js`: Extend `streamContractQuery` with multi-event callbacks (`onRoute`, `onWorkerStatus`, `onCitation`, `onToken`, `onTelemetry`, `onDone`) while maintaining backward compatibility with legacy streams.
+  4. `tests/backend/test_ticket_17_multiplexer.py`: Pytest suite validating SSE event framing, document ID citation tagging, worker progress event dispatch, and telemetry latency precision.
+- **Files**:
+  - `backend/apps/query/services/multiplexer.py`
+  - `backend/apps/query/services/__init__.py`
+  - `backend/apps/query/serializers.py`
+  - `backend/apps/query/views.py`
+  - `frontend/src/services/streaming.js`
+  - `tests/backend/test_ticket_17_multiplexer.py`
+- **Verification Gate**:
+  - `pytest tests/backend/test_ticket_17_multiplexer.py -v --tb=short`
+  - `flake8 backend`
+  - `mypy backend`
+  - `npm --prefix frontend run lint`
+  - `npm --prefix frontend test -- --run`
+  - `powershell -ExecutionPolicy Bypass -File ./scripts/harness-check.ps1`
+

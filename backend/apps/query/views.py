@@ -14,6 +14,7 @@ from apps.query.serializers import (
     QueryRequestSerializer,
     VerifyRequestSerializer,
 )
+from apps.query.services.multiplexer import MultiTargetSSEMultiplexer
 from apps.query.services.synthesis import GroqSynthesisService
 from apps.query.services.verifier import CitationValidator
 from apps.search.services.hybrid_search import HybridSearchService, SearchResult
@@ -47,6 +48,7 @@ class StreamingQueryView(APIView):
     POST /api/query/stream/
     Authenticates requesting user, retrieves top grounded context chunks via hybrid search,
     and streams synthesized answers with exact coordinate citations via Server-Sent Events (SSE).
+    Supports multi-target parallel document dispatch via MultiTargetSSEMultiplexer.
     """
     content_negotiation_class = IgnoreClientContentNegotiation
     renderer_classes = [ServerSentEventRenderer]
@@ -64,22 +66,38 @@ class StreamingQueryView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
-        # 1. Retrieve relevant chunks using hybrid RRF search
-        search_service = HybridSearchService()
-        chunks = search_service.search(
-            user_id=user.id,
-            query=data["query"],
-            document_id=data.get("document_id"),
-            top_k=data.get("top_k", 5),
+        # Multi-target query path vs legacy single-document stream
+        is_multi_target = (
+            "document_ids" in request.data
+            and bool(data.get("document_ids"))
         )
 
-        # 2. Synthesize streamed answer with SSE event protocol
-        synthesis_service = GroqSynthesisService()
-        event_stream = synthesis_service.stream_synthesis_sse(
-            query=data["query"],
-            retrieved_chunks=chunks,
-            temperature=data.get("temperature", 0.2),
-        )
+        if is_multi_target:
+            multiplexer = MultiTargetSSEMultiplexer()
+            event_stream = multiplexer.stream_multi_target_query(
+                query=data["query"],
+                document_ids=data["document_ids"],
+                user_id=user.id,
+                temperature=data.get("temperature", 0.2),
+                top_k=data.get("top_k", 5),
+            )
+        else:
+            # 1. Retrieve relevant chunks using hybrid RRF search
+            search_service = HybridSearchService()
+            chunks = search_service.search(
+                user_id=user.id,
+                query=data["query"],
+                document_id=data.get("document_id"),
+                top_k=data.get("top_k", 5),
+            )
+
+            # 2. Synthesize streamed answer with SSE event protocol
+            synthesis_service = GroqSynthesisService()
+            event_stream = synthesis_service.stream_synthesis_sse(
+                query=data["query"],
+                retrieved_chunks=chunks,
+                temperature=data.get("temperature", 0.2),
+            )
 
         response = StreamingHttpResponse(
             event_stream,

@@ -15,6 +15,13 @@ class QueryRequestSerializer(serializers.Serializer):
         allow_null=True,
         default=None,
     )
+    document_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False,
+        allow_empty=True,
+        max_length=8,
+        default=list,
+    )
     top_k = serializers.IntegerField(
         required=False,
         min_value=1,
@@ -27,6 +34,15 @@ class QueryRequestSerializer(serializers.Serializer):
         max_value=1.0,
         default=0.2,
     )
+
+    def validate(self, attrs: dict) -> dict:
+        """Harmonize document_id and document_ids."""
+        doc_ids = list(attrs.get("document_ids") or [])
+        single_doc = attrs.get("document_id")
+        if not doc_ids and single_doc:
+            doc_ids = [single_doc]
+        attrs["document_ids"] = doc_ids
+        return attrs
 
 
 class VerifyRequestChunkSerializer(serializers.Serializer):

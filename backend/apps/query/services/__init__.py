@@ -2,6 +2,7 @@
 from apps.query.services.citation import CitationEngine
 from apps.query.services.dispatcher import ConcurrentMapDispatcher
 from apps.query.services.gater import ConfidenceGater
+from apps.query.services.multiplexer import MultiTargetSSEMultiplexer
 from apps.query.services.reducer import MultiDocReduceSynthesizer
 from apps.query.services.synthesis import GroqSynthesisService
 from apps.query.services.verifier import (
@@ -20,6 +21,7 @@ __all__ = [
     "DocumentAuditWorker",
     "GroqSynthesisService",
     "MultiDocReduceSynthesizer",
+    "MultiTargetSSEMultiplexer",
     "VerificationResult",
     "normalize_bounding_box",
 ]

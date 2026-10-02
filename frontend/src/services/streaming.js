@@ -1,14 +1,20 @@
 /**
  * SSE Streaming client for Contract Query & Citation Synthesis.
  * Consumes POST /api/query/stream/ with HttpOnly credentials over Server-Sent Events.
+ * Supports multi-target parallel document dispatch and legacy single-document streams.
  */
 export async function streamContractQuery({
   query,
   documentId = null,
+  documentIds = null,
   topK = 5,
   onMetadata,
   onDelta,
   onVerification,
+  onRoute,
+  onWorkerStatus,
+  onCitation,
+  onToken,
   onTelemetry,
   onError,
   onDone,
@@ -19,7 +25,9 @@ export async function streamContractQuery({
       query: query.trim(),
       top_k: topK,
     };
-    if (documentId) {
+    if (documentIds && Array.isArray(documentIds) && documentIds.length > 0) {
+      payload.document_ids = documentIds;
+    } else if (documentId) {
       payload.document_id = documentId;
     }
 
@@ -78,12 +86,28 @@ export async function streamContractQuery({
         if (!dataStr) continue;
 
         try {
-          if (eventType === 'metadata') {
+          if (eventType === 'route') {
+            const parsed = JSON.parse(dataStr);
+            if (onRoute) onRoute(parsed);
+          } else if (eventType === 'worker_status') {
+            const parsed = JSON.parse(dataStr);
+            if (onWorkerStatus) onWorkerStatus(parsed);
+          } else if (eventType === 'citation') {
+            const parsed = JSON.parse(dataStr);
+            if (onCitation) onCitation(parsed);
+          } else if (eventType === 'token') {
+            const parsed = JSON.parse(dataStr);
+            const content = parsed.content || '';
+            if (onToken) onToken(content);
+            if (onDelta) onDelta(content);
+          } else if (eventType === 'metadata') {
             const parsed = JSON.parse(dataStr);
             if (onMetadata) onMetadata(parsed);
           } else if (eventType === 'delta') {
             const parsed = JSON.parse(dataStr);
-            if (onDelta) onDelta(parsed.content || '');
+            const content = parsed.content || '';
+            if (onDelta) onDelta(content);
+            if (onToken) onToken(content);
           } else if (eventType === 'verification') {
             const parsed = JSON.parse(dataStr);
             if (onVerification) onVerification(parsed);
@@ -108,3 +132,5 @@ export async function streamContractQuery({
     if (onError) onError(err);
   }
 }
+
+export const streamQuery = streamContractQuery;
