@@ -360,3 +360,27 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
   - `npm --prefix frontend test -- --run`
   - `powershell -ExecutionPolicy Bypass -File ./scripts/harness-check.ps1`
 
+---
+
+### TICKET-18: Multi-Document Workspace UI & Institutional A/B Mode Toggle
+- **Status**: `[x] Complete`
+- **Scope**: Implement multi-document workspace selector dock, institutional A/B operational mode toggle, and multi-target synthesis/citation integration:
+  1. `frontend/src/components/workspace/DocumentSelectorDock.jsx`: Dock selector allowing selection of 1 to 8 documents (default 2), institutional badge indicators (Doc A: slate-cyan, Doc B: amber-indigo), and real-time worker status indicators (`PENDING`, `PROCESSING`, `READY`, `TIMEOUT`).
+  2. `frontend/src/components/workspace/ModeToggle.jsx`: Institutional A/B mode toggle between `DUAL-SYSTEM (AUTONOMOUS)` (default) and `FRONTIER-ONLY (BENCHMARK)`, passing `force_frontier` flag.
+  3. `frontend/src/pages/workspace/WorkspacePage.jsx` & `frontend/src/components/workspace/SynthesisView.jsx`: Integrate multi-target streaming with `document_ids`, display active route indicator badge in synthesis header (`SYSTEM 1: EXTRACTIVE FAST-PATH` vs `SYSTEM 2: FRONTIER REDUCE SYNTHESIS`), and document-distinguishing citation chips (`[Doc A - P.92]`, `[Doc B - P.34]`) with document selection dispatch.
+  4. `frontend/src/tests/workspace_multidoc.test.jsx`: Unit and integration test suite covering document dock selection, mode toggle payload, multi-document citation chips, and worker status updates.
+- **Files**:
+  - `frontend/src/components/workspace/DocumentSelectorDock.jsx`
+  - `frontend/src/components/workspace/ModeToggle.jsx`
+  - `frontend/src/components/workspace/SynthesisView.jsx`
+  - `frontend/src/pages/workspace/WorkspacePage.jsx`
+  - `frontend/src/tests/workspace_multidoc.test.jsx`
+- **Verification Gate**:
+  - `npm --prefix frontend test -- --run src/tests/workspace_multidoc.test.jsx`
+  - `npm --prefix frontend run lint`
+  - `npm --prefix frontend run build`
+  - `flake8 backend`
+  - `mypy backend`
+  - `pytest tests/backend -q --tb=short`
+  - `powershell -ExecutionPolicy Bypass -File ./scripts/harness-check.ps1`
+

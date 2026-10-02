@@ -127,6 +127,7 @@ class MultiTargetSSEMultiplexer:
         reducer: Optional[MultiDocReduceSynthesizer] = None,
         temperature: float = 0.2,
         top_k: int = 5,
+        force_frontier: bool = False,
     ) -> Generator[str, None, None]:
         """
         Orchestrates full multi-target query execution and yields SSE event streams.
@@ -168,9 +169,28 @@ class MultiTargetSSEMultiplexer:
             worker_latency_breakdown[did] = dur
             yield self.format_worker_status(document_id=did, status=stat, duration_ms=dur)
 
-        # 3. Evaluate confidence gater
+        # 3. Evaluate confidence gater (or route directly if force_frontier)
         is_multi_doc = len(doc_id_strs) > 1
-        decision = gat.evaluate(query=query, bundles=bundles, is_multi_doc=is_multi_doc)
+        decision: Dict[str, Any]
+        if force_frontier:
+            decision = {
+                "route": "SYSTEM_2_FRONTIER",
+                "confidence_score": 0.0,
+                "reason": "Operator forced frontier benchmark mode.",
+                "is_multi_doc": is_multi_doc,
+                "grounded_evidence": [
+                    {
+                        "document_id": str(b.get("document_id")),
+                        "chunks": b.get("candidate_chunks", []),
+                    }
+                    for b in bundles
+                    if b.get("status") == "SUCCESS"
+                ],
+                "fast_path_payload": None,
+            }
+        else:
+            decision = gat.evaluate(query=query, bundles=bundles, is_multi_doc=is_multi_doc)
+
         yield self.format_route(
             route=decision["route"],
             confidence=decision["confidence_score"],

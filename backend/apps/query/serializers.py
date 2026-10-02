@@ -34,6 +34,10 @@ class QueryRequestSerializer(serializers.Serializer):
         max_value=1.0,
         default=0.2,
     )
+    force_frontier = serializers.BooleanField(
+        required=False,
+        default=False,
+    )
 
     def validate(self, attrs: dict) -> dict:
         """Harmonize document_id and document_ids."""

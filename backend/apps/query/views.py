@@ -80,6 +80,7 @@ class StreamingQueryView(APIView):
                 user_id=user.id,
                 temperature=data.get("temperature", 0.2),
                 top_k=data.get("top_k", 5),
+                force_frontier=data.get("force_frontier", False),
             )
         else:
             # 1. Retrieve relevant chunks using hybrid RRF search

@@ -9,6 +9,8 @@ export default function SynthesisView({
   activeCitationIndex = null,
   onSelectCitation,
   telemetry = null,
+  routeInfo = null,
+  documentMap = {},
 }) {
   // Parse text and replace [Ref: N] or [Ref:N] with interactive CitationBadge components
   const renderFormattedContent = () => {
@@ -41,6 +43,8 @@ export default function SynthesisView({
       );
 
       const isActive = Number(activeCitationIndex) === refNumber;
+      const docInfo = citationData?.document_id ? documentMap[citationData.document_id] : null;
+      const docLabel = docInfo?.label || null;
 
       parts.push(
         <CitationBadge
@@ -50,13 +54,18 @@ export default function SynthesisView({
           confidence={citationData?.confidence ?? 0.85}
           pageNumber={citationData?.page_number || 1}
           chunkId={citationData?.chunk_id}
+          documentId={citationData?.document_id}
+          docLabel={docLabel}
+          boundingBox={citationData?.bounding_box}
           isActive={isActive}
           onClick={() => {
             if (onSelectCitation) {
               onSelectCitation(
                 citationData || {
                   citation_index: refNumber,
+                  citationIndex: refNumber,
                   page_number: 1,
+                  pageNumber: 1,
                 }
               );
             }
@@ -94,11 +103,30 @@ export default function SynthesisView({
       {/* Content Stream Area */}
       <div className="flex-1 overflow-y-auto p-5 select-text">
         <div className="p-4 rounded border border-zinc-800/80 bg-zinc-900/50 shadow-inner">
-          <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-zinc-800 text-[11px] font-mono text-zinc-400">
-            <span className="font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              SYNTHESIS OUTPUT STREAM
-            </span>
+          <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-zinc-800 text-[11px] font-mono text-zinc-400 flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                SYNTHESIS OUTPUT STREAM
+              </span>
+
+              {routeInfo && (
+                <span
+                  data-testid="synthesis-route-badge"
+                  className={`px-2 py-0.5 rounded border text-[10px] font-mono font-bold tracking-wide flex items-center gap-1 ${
+                    routeInfo.route === 'SYSTEM_1_FAST_PATH'
+                      ? 'border-emerald-500/50 bg-emerald-950/50 text-emerald-400'
+                      : 'border-amber-500/50 bg-amber-950/50 text-amber-400'
+                  }`}
+                  title={`Confidence: ${Math.round((routeInfo.confidence || 0) * 100)}% | ${routeInfo.reason || ''}`}
+                >
+                  {routeInfo.route === 'SYSTEM_1_FAST_PATH'
+                    ? '⚡ SYSTEM 1: EXTRACTIVE FAST-PATH'
+                    : '🧠 SYSTEM 2: FRONTIER REDUCE SYNTHESIS'}
+                </span>
+              )}
+            </div>
+
             <span className="text-zinc-500">ENGINE: GROQ-LLAMA3</span>
           </div>
 

@@ -7,6 +7,7 @@ export async function streamContractQuery({
   query,
   documentId = null,
   documentIds = null,
+  forceFrontier = false,
   topK = 5,
   onMetadata,
   onDelta,
@@ -25,6 +26,9 @@ export async function streamContractQuery({
       query: query.trim(),
       top_k: topK,
     };
+    if (forceFrontier) {
+      payload.force_frontier = true;
+    }
     if (documentIds && Array.isArray(documentIds) && documentIds.length > 0) {
       payload.document_ids = documentIds;
     } else if (documentId) {

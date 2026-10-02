@@ -6,6 +6,9 @@ export default function CitationBadge({
   confidence = 0.9,
   pageNumber = 1,
   chunkId = null,
+  documentId = null,
+  docLabel = null,
+  boundingBox = null,
   onClick,
   isActive = false,
 }) {
@@ -31,13 +34,25 @@ export default function CitationBadge({
   const handleClick = (e) => {
     e.stopPropagation();
     if (onClick) {
-      onClick({
+      const payload = {
         citationIndex,
         status,
         confidence,
         pageNumber,
         chunkId,
-      });
+      };
+      if (documentId !== null && documentId !== undefined) {
+        payload.documentId = documentId;
+        payload.document_id = documentId;
+        payload.citation_index = citationIndex;
+        payload.page_number = pageNumber;
+        payload.chunk_id = chunkId;
+      }
+      if (boundingBox !== null && boundingBox !== undefined) {
+        payload.boundingBox = boundingBox;
+        payload.bounding_box = boundingBox;
+      }
+      onClick(payload);
     }
   };
 
@@ -46,16 +61,18 @@ export default function CitationBadge({
       ? `${Math.round(confidence * 100)}%`
       : 'N/A';
 
+  const labelText = docLabel ? `${docLabel}` : `Ref: ${citationIndex}`;
+
   return (
     <button
       type="button"
       data-testid={`citation-badge-${citationIndex}`}
       onClick={handleClick}
-      title={`Citation Ref: ${citationIndex} | Page ${pageNumber} | Confidence: ${formattedConfidence} | Status: ${status}`}
+      title={`Citation ${labelText} | Page ${pageNumber} | Confidence: ${formattedConfidence} | Status: ${status}`}
       className={`inline-flex items-center gap-1 mx-1 px-1.5 py-0.5 rounded border text-[11px] font-mono font-semibold transition-all duration-150 cursor-pointer select-none ${colorClasses}`}
     >
       <span className={`w-1.5 h-1.5 rounded-full ${dotColor} flex-shrink-0`} />
-      <span>Ref: {citationIndex}</span>
+      <span>{labelText}</span>
       {pageNumber && (
         <span className="text-[9px] opacity-70">p.{pageNumber}</span>
       )}
