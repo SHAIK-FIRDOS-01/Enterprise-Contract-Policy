@@ -9,13 +9,19 @@ Formats Server-Sent Events across multi-document query lifecycle:
 - 'done': Terminal stream signal [DONE]
 """
 import json
+import logging
 import time
+from decimal import Decimal
 from typing import Any, Dict, Generator, List, Optional, Union
 from uuid import UUID
+
+from django.conf import settings
 
 from apps.query.services.dispatcher import ConcurrentMapDispatcher
 from apps.query.services.gater import ConfidenceGater
 from apps.query.services.reducer import MultiDocReduceSynthesizer
+
+logger = logging.getLogger(__name__)
 
 
 class MultiTargetSSEMultiplexer:
@@ -153,12 +159,14 @@ class MultiTargetSSEMultiplexer:
             return
 
         # 1. Dispatch concurrent retrieval
+        dispatch_start = time.perf_counter()
         bundles = disp.dispatch(
             document_ids=doc_id_targets,
             query_text=query,
             user_id=user_id,
             top_k=top_k,
         )
+        dispatch_wall_ms = (time.perf_counter() - dispatch_start) * 1000.0
 
         # 2. Emit worker_status events for each target document
         worker_latency_breakdown: Dict[str, float] = {}
@@ -263,6 +271,60 @@ class MultiTargetSSEMultiplexer:
                 completion_tokens=comp_tok,
                 estimated_cost_usd=0.0001,
             )
+
+        # Record benchmark telemetry record
+        try:
+            from apps.analytics.models import AuditBenchmarkLog
+            from apps.analytics.services.telemetry import calculate_groq_cost
+
+            worker_sum_ms = sum(worker_latency_breakdown.values())
+            worker_timeouts = sum(1 for b in bundles if b.get("status") == "TIMEOUT")
+            concurrency_speedup = (
+                round(worker_sum_ms / max(0.1, dispatch_wall_ms), 2)
+                if dispatch_wall_ms > 0
+                else 1.0
+            )
+            route_name = "FRONTIER_ONLY" if force_frontier else str(decision.get("route"))
+            op_name = (
+                "FAST_PATH_SYNTHESIS"
+                if decision.get("route") == "SYSTEM_1_FAST_PATH"
+                else "MULTI_DOC_QUERY"
+            )
+            model_used = (
+                "onnx-minilm"
+                if decision.get("route") == "SYSTEM_1_FAST_PATH"
+                else str(getattr(settings, "GROQ_MODEL", "llama-3.3-70b-versatile"))
+            )
+            cost = (
+                Decimal("0.000000")
+                if decision.get("route") == "SYSTEM_1_FAST_PATH"
+                else calculate_groq_cost(model_used, prompt_tok, comp_tok)
+            )
+
+            AuditBenchmarkLog.objects.create(
+                operation=op_name,
+                model_name=model_used,
+                duration_ms=round(total_duration_ms, 3),
+                prompt_tokens=prompt_tok,
+                completion_tokens=comp_tok,
+                total_tokens=prompt_tok + comp_tok,
+                estimated_cost_usd=cost,
+                status="SUCCESS",
+                metadata={
+                    "query": query,
+                    "route": route_name,
+                    "force_frontier": force_frontier,
+                    "is_multi_doc": is_multi_doc,
+                    "document_count": len(doc_id_targets),
+                    "dispatch_wall_ms": round(dispatch_wall_ms, 2),
+                    "worker_sum_ms": round(worker_sum_ms, 2),
+                    "worker_latencies": worker_latency_breakdown,
+                    "worker_timeouts": worker_timeouts,
+                    "concurrency_speedup": concurrency_speedup,
+                },
+            )
+        except Exception as exc:
+            logger.warning("Failed to persist query benchmark telemetry: %s", exc)
 
         # 6. Terminal done event
         yield self.format_done()

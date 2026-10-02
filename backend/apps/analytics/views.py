@@ -8,6 +8,7 @@ from rest_framework.request import Request
 from rest_framework.permissions import AllowAny
 
 from apps.analytics.models import AuditBenchmarkLog
+from apps.analytics.services.telemetry import TelemetryService
 
 
 class BenchmarksSummaryView(APIView):
@@ -68,4 +69,17 @@ class BenchmarksSummaryView(APIView):
             "operations_breakdown": operations_breakdown,
         }
 
+        return Response(payload)
+
+
+class ComparativeBenchmarksView(APIView):
+    """
+    API endpoint returning comparative A/B benchmarks across routing paths:
+    System 1 fast path vs System 2 frontier reduce vs Frontier-only baseline.
+    Computes concurrency speedup, worker pool health, and ROI economics.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        payload = TelemetryService.get_ab_comparison()
         return Response(payload)

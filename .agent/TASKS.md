@@ -29,6 +29,7 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
 | **TICKET-17** | `[x] Complete` | `query` / SSE | Real-Time Multi-Target SSE Protocol & Stream Multiplexer |
 | **TICKET-18** | `[x] Complete` | `frontend` / Workspace | Multi-Document Workspace UI & Institutional A/B Mode Toggle |
 | **TICKET-19** | `[x] Complete` | `frontend` / Viewer | Split-Screen Synchronized Dual-PDF Viewer Canvas Engine |
+| **TICKET-20** | `[x] Complete` | `analytics` & `frontend` | A/B Comparative Telemetry, Concurrency Metrics & Cost/Latency ROI Dashboard |
 
 ---
 
@@ -412,4 +413,32 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
   - `mypy backend`
   - `pytest tests/backend -q --tb=short`
   - `powershell -ExecutionPolicy Bypass -File ./scripts/harness-check.ps1`
+
+---
+
+### TICKET-20: A/B Comparative Telemetry, Concurrency Metrics & Cost/Latency ROI Dashboard
+- **Status**: `[x] Complete`
+- **Scope**: Implement A/B comparative telemetry aggregation, parallel worker metrics, ROI calculation, comparative matrix UI, and benchmark harness:
+  1. `backend/apps/analytics/services.py` & `views.py`: Extend `TelemetryService` to aggregate metrics across routing paths (System 1 fast-path vs System 2 reduce-stage frontier vs frontier-only baseline). Compute concurrency speedup ratio ((sum of individual worker latencies) / (actual wall-clock duration)), worker timeout/straggler rate, tokens saved by System 1, dollar savings against Groq rate tables, and latency reduction percentage. Expose endpoint `GET /api/analytics/benchmarks/ab-comparison/`.
+  2. `frontend/src/components/telemetry/ComparativeRoiMatrix.jsx` & `frontend/src/pages/telemetry/TelemetryPage.jsx`: Comparative analytics dashboard consuming the comparison endpoint, displaying side-by-side KPI cards ("Dual-System Mode" vs "Frontier-Only Baseline"), average latency differential (45ms vs 1,200ms+), cumulative dollar savings, concurrency speedup factor, and latency decomposition visualization.
+  3. `scripts/benchmark-ab.py`: Standalone benchmarking script executing parallel test queries across 2 test documents in `DUAL_SYSTEM` and `FRONTIER_ONLY` modes, verifying `AuditBenchmarkLog` persistence, and formatting output to stdout.
+  4. `tests/backend/test_ticket_20_ab_telemetry.py` & `frontend/src/tests/ab_telemetry.test.jsx`: Exhaustive test suites verifying calculation accuracy, endpoint contract, UI rendering, and end-to-end benchmark execution.
+- **Files**:
+  - `backend/apps/analytics/services.py`
+  - `backend/apps/analytics/views.py`
+  - `backend/apps/analytics/urls.py`
+  - `frontend/src/components/telemetry/ComparativeRoiMatrix.jsx`
+  - `frontend/src/pages/telemetry/TelemetryPage.jsx`
+  - `scripts/benchmark-ab.py`
+  - `tests/backend/test_ticket_20_ab_telemetry.py`
+  - `frontend/src/tests/ab_telemetry.test.jsx`
+- **Verification Gate**:
+  - `pytest tests/backend/test_ticket_20_ab_telemetry.py -v --tb=short`
+  - `npm --prefix frontend test -- --run src/tests/ab_telemetry.test.jsx`
+  - `flake8 backend`
+  - `mypy backend`
+  - `npm --prefix frontend run lint`
+  - `npm --prefix frontend run build`
+  - `powershell -ExecutionPolicy Bypass -File ./scripts/harness-check.ps1`
+
 

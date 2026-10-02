@@ -12,6 +12,10 @@ class OperationType(models.TextChoices):
     LLM_SYNTHESIS = "LLM_SYNTHESIS", "LLM Inference and Answer Synthesis"
     CITATION_VERIFY = "CITATION_VERIFY", "Citation Grounding Verification"
     AUTH_VERIFY = "AUTH_VERIFY", "Authentication Verification"
+    REDUCE_SYNTHESIS = "REDUCE_SYNTHESIS", "Reduce-Stage Frontier Synthesis"
+    FAST_PATH_SYNTHESIS = "FAST_PATH_SYNTHESIS", "Fast-Path Extractive Synthesis"
+    MULTI_DOC_QUERY = "MULTI_DOC_QUERY", "Multi-Document Query Execution"
+    AB_BENCHMARK = "AB_BENCHMARK", "A/B Benchmark Query Execution"
 
 
 class AuditBenchmarkLog(models.Model):

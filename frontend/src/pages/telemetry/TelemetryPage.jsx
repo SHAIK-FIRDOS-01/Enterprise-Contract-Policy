@@ -13,6 +13,7 @@ import MetricStatCard from '../../components/telemetry/MetricStatCard';
 import PipelineLatencyBreakdown from '../../components/telemetry/PipelineLatencyBreakdown';
 import TokenCostAnalytics from '../../components/telemetry/TokenCostAnalytics';
 import DualSystemRoiCard from '../../components/telemetry/DualSystemRoiCard';
+import ComparativeRoiMatrix from '../../components/telemetry/ComparativeRoiMatrix';
 
 export default function TelemetryPage() {
   const [benchmarkData, setBenchmarkData] = useState(null);
@@ -192,6 +193,9 @@ export default function TelemetryPage() {
             icon={ShieldCheck}
           />
         </div>
+ 
+        {/* A/B Comparative Telemetry & Concurrency ROI Matrix */}
+        <ComparativeRoiMatrix />
 
         {/* Pipeline Stage Latency Decomposition */}
         <PipelineLatencyBreakdown operationsBreakdown={operationsBreakdown} />

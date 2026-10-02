@@ -9,6 +9,15 @@ export async function fetchBenchmarkSummary() {
 }
 
 /**
+ * Fetches A/B comparative benchmark telemetry from Django backend.
+ */
+export async function fetchComparativeBenchmarks() {
+  const response = await api.get('/api/analytics/benchmarks/ab-comparison/');
+  return response.data;
+}
+
+
+/**
  * Computes comparative economic savings and ROI against industry baselines:
  * - Baseline 1 (Manual Legal Review): $25.00 per contract document.
  * - Baseline 2 (Naive Frontier LLM): $0.08 per ungrounded frontier query (30k tokens @ $2.50/M).
