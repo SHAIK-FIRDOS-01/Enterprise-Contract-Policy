@@ -8,6 +8,8 @@ export default function BoundingBoxOverlay({
   canvasWidth = 0,
   canvasHeight = 0,
   originalPage = null,
+  documentId = null,
+  paneTheme = null, // 'cyan' | 'amber' | null
   onSelectBox,
   isVisible = true,
 }) {
@@ -17,25 +19,42 @@ export default function BoundingBoxOverlay({
     return null;
   }
 
+  // Filter boxes specific to this pane's document if documentId is provided
+  const targetBoxes = documentId
+    ? boundingBoxes.filter(
+        (b) => !b.document_id || b.document_id === documentId || b.documentId === documentId
+      )
+    : boundingBoxes;
+
+  if (!targetBoxes.length) {
+    return null;
+  }
+
   return (
     <div
       className="absolute inset-0 pointer-events-none z-10 overflow-hidden"
       style={{ width: `${canvasWidth}px`, height: `${canvasHeight}px` }}
     >
-      {boundingBoxes.map((item) => {
+      {targetBoxes.map((item) => {
         const boxId = item.id || `chunk-${item.chunk_index}`;
         const isActive = activeBoxId === boxId;
         const isHovered = hoveredBoxId === boxId;
 
-        const coords = transformCoordinates(
+        const rawCoords = transformCoordinates(
           item.bounding_box || item,
           canvasWidth,
           canvasHeight,
           originalPage
         );
 
+        // Negative & out-of-bounds coordinate clamp protections
+        const left = Math.max(0, Math.min(canvasWidth, rawCoords.left));
+        const top = Math.max(0, Math.min(canvasHeight, rawCoords.top));
+        const width = Math.max(0, Math.min(canvasWidth - left, rawCoords.width));
+        const height = Math.max(0, Math.min(canvasHeight - top, rawCoords.height));
+
         // Discard degenerate or zero-area bounding boxes
-        if (coords.width <= 0 || coords.height <= 0) {
+        if (width <= 0 || height <= 0) {
           return null;
         }
 
@@ -43,12 +62,23 @@ export default function BoundingBoxOverlay({
         const isCaution = item.status === 'LOW' || item.status === 'CAUTION';
 
         let boxColorClasses = 'border-amber-400/80 bg-amber-500/20 hover:bg-amber-500/35 hover:border-amber-300';
-        if (isActive) {
-          boxColorClasses = 'border-emerald-400 bg-emerald-500/30 shadow-[0_0_12px_rgba(52,211,153,0.6)] z-20';
-        } else if (isRejected) {
-          boxColorClasses = 'border-rose-400/80 bg-rose-500/20 hover:bg-rose-500/35 hover:border-rose-300';
-        } else if (isCaution) {
-          boxColorClasses = 'border-yellow-400/80 bg-yellow-500/20 hover:bg-yellow-500/35 hover:border-yellow-300';
+
+        if (paneTheme === 'cyan') {
+          boxColorClasses = isActive
+            ? 'border-cyan-400 bg-cyan-500/30 shadow-[0_0_12px_rgba(6,182,212,0.6)] z-20'
+            : 'border-cyan-500/80 bg-cyan-500/10 hover:bg-cyan-500/25 hover:border-cyan-400';
+        } else if (paneTheme === 'amber') {
+          boxColorClasses = isActive
+            ? 'border-amber-400 bg-amber-500/30 shadow-[0_0_12px_rgba(245,158,11,0.6)] z-20'
+            : 'border-amber-500/80 bg-amber-500/10 hover:bg-amber-500/25 hover:border-amber-400';
+        } else {
+          if (isActive) {
+            boxColorClasses = 'border-emerald-400 bg-emerald-500/30 shadow-[0_0_12px_rgba(52,211,153,0.6)] z-20';
+          } else if (isRejected) {
+            boxColorClasses = 'border-rose-400/80 bg-rose-500/20 hover:bg-rose-500/35 hover:border-rose-300';
+          } else if (isCaution) {
+            boxColorClasses = 'border-yellow-400/80 bg-yellow-500/20 hover:bg-yellow-500/35 hover:border-yellow-300';
+          }
         }
 
         return (
@@ -63,10 +93,10 @@ export default function BoundingBoxOverlay({
             onMouseLeave={() => setHoveredBoxId(null)}
             className={`absolute border-2 rounded-sm cursor-pointer pointer-events-auto transition-all duration-150 group ${boxColorClasses}`}
             style={{
-              left: `${coords.left}px`,
-              top: `${coords.top}px`,
-              width: `${coords.width}px`,
-              height: `${coords.height}px`,
+              left: `${left}px`,
+              top: `${top}px`,
+              width: `${width}px`,
+              height: `${height}px`,
             }}
           >
             {/* Tag Badge */}

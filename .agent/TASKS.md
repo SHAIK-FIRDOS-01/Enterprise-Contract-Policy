@@ -24,6 +24,11 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
 | **TICKET-12** | `[x] Complete` | `frontend` & Telemetry | High-density telemetry dashboard, pipeline latency analytics, token economics & ROI cards |
 | **TICKET-13** | `[x] Complete` | System Integration | Full-pipeline E2E test suite, ingestion-to-synthesis verification, and Phase 1 release sign-off |
 | **TICKET-14-RESPONSIVE** | `[x] Complete` | `frontend` | Responsive Web Layout, High-DPI Canvas Coordinate Normalization, and Adaptive Split-Pane Ergonomics |
+| **TICKET-15** | `[x] Complete` | `query` / Services | Concurrent Multi-Document Worker Pool & Map Dispatcher |
+| **TICKET-16** | `[x] Complete` | `query` / Services | Deterministic Confidence Gater & Reduce-Stage Groq Handoff |
+| **TICKET-17** | `[x] Complete` | `query` / SSE | Real-Time Multi-Target SSE Protocol & Stream Multiplexer |
+| **TICKET-18** | `[x] Complete` | `frontend` / Workspace | Multi-Document Workspace UI & Institutional A/B Mode Toggle |
+| **TICKET-19** | `[x] Complete` | `frontend` / Viewer | Split-Screen Synchronized Dual-PDF Viewer Canvas Engine |
 
 ---
 
@@ -377,6 +382,30 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
   - `frontend/src/tests/workspace_multidoc.test.jsx`
 - **Verification Gate**:
   - `npm --prefix frontend test -- --run src/tests/workspace_multidoc.test.jsx`
+  - `npm --prefix frontend run lint`
+  - `npm --prefix frontend run build`
+  - `flake8 backend`
+  - `mypy backend`
+  - `pytest tests/backend -q --tb=short`
+  - `powershell -ExecutionPolicy Bypass -File ./scripts/harness-check.ps1`
+
+---
+
+### TICKET-19: Split-Screen Synchronized Dual-PDF Viewer Canvas Engine
+- **Status**: `[x] Complete`
+- **Scope**: Implement side-by-side dual-PDF viewer canvas engine, split-pane synchronization controls, and multi-document bounding box overlays:
+  1. `frontend/src/components/viewer/DualPDFViewer.jsx`: Independent isolated dual-canvas engine rendering Document A (Primary) and Document B (Comparison) side-by-side or stacked/tabbed on compact screens. Independent render task refs (`renderTaskRefA`, `renderTaskRefB`), High-DPI coordinate decoupling, and citation highlight synchronization (Doc A in cyan, Doc B in amber).
+  2. `frontend/src/components/viewer/DualViewerControls.jsx`: Split-pane navigation controls with independent page stepping, zoom controls, and a proportional "Lock Scroll" toggle to synchronize comparative clause reading across revisions.
+  3. `frontend/src/components/viewer/BoundingBoxOverlay.jsx`: Extend with `documentId` prop, filtering bounding boxes specific to the pane's target document, with theme color coding (Doc A in cyan/emerald, Doc B in amber/indigo) and viewport coordinate clamping.
+  4. `frontend/src/tests/dual_viewer.test.jsx`: Vitest component test suite verifying isolated canvas lifecycle, document ID filtering, synchronized navigation toggle, and responsive split clamping.
+- **Files**:
+  - `frontend/src/components/viewer/DualPDFViewer.jsx`
+  - `frontend/src/components/viewer/DualViewerControls.jsx`
+  - `frontend/src/components/viewer/BoundingBoxOverlay.jsx`
+  - `frontend/src/pages/workspace/WorkspacePage.jsx`
+  - `frontend/src/tests/dual_viewer.test.jsx`
+- **Verification Gate**:
+  - `npm --prefix frontend test -- --run src/tests/dual_viewer.test.jsx`
   - `npm --prefix frontend run lint`
   - `npm --prefix frontend run build`
   - `flake8 backend`

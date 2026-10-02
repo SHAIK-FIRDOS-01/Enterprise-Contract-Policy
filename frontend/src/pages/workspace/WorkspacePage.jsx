@@ -4,6 +4,7 @@ import api from '../../services/api';
 import { streamContractQuery } from '../../services/streaming';
 import useResponsiveViewport from '../../hooks/useResponsiveViewport';
 import PDFViewer from '../../components/viewer/PDFViewer';
+import DualPDFViewer from '../../components/viewer/DualPDFViewer';
 import AuditQueryInput from '../../components/workspace/AuditQueryInput';
 import SynthesisView from '../../components/workspace/SynthesisView';
 import CitationInspector from '../../components/workspace/CitationInspector';
@@ -53,6 +54,7 @@ export default function WorkspacePage() {
   const [synthesisText, setSynthesisText] = useState('');
   const [verifiedCitations, setVerifiedCitations] = useState([]);
   const [activeCitationIndex, setActiveCitationIndex] = useState(null);
+  const [activeCitation, setActiveCitation] = useState(null);
   const [telemetry, setTelemetry] = useState(null);
   const [activeTab, setActiveTab] = useState('synthesis'); // 'synthesis' | 'citations'
 
@@ -79,6 +81,15 @@ export default function WorkspacePage() {
     });
     return map;
   }, [selectedDocIds, documents]);
+
+  const docA = useMemo(
+    () => documents.find((d) => d.id === selectedDocIds[0]) || null,
+    [documents, selectedDocIds]
+  );
+  const docB = useMemo(
+    () => documents.find((d) => d.id === selectedDocIds[1]) || null,
+    [documents, selectedDocIds]
+  );
 
   // Fetch ready documents for dropdown & multi-target selection
   const fetchDocuments = useCallback(async () => {
@@ -199,6 +210,7 @@ export default function WorkspacePage() {
   const handleSelectCitation = (citation) => {
     if (!citation) return;
 
+    setActiveCitation(citation);
     const citationIndex = citation.citation_index || citation.citationIndex;
     setActiveCitationIndex(citationIndex);
 
@@ -516,19 +528,31 @@ export default function WorkspacePage() {
         {(!isCompact || compactTab === 'viewer') && (
           <div
             className={`h-full border-r border-zinc-800 bg-zinc-950 overflow-hidden flex flex-col ${
-              isCompact ? 'flex-1' : 'w-[55%] min-w-[500px]'
+              isCompact ? 'flex-1' : selectedDocIds.length >= 2 && docA && docB ? 'w-[62%] min-w-[560px]' : 'w-[55%] min-w-[500px]'
             }`}
           >
-            <PDFViewer
-              fileUrl={selectedDocument?.file || (selectedDocument?.file_path ? `/media/${selectedDocument.file_path}` : null)}
-              activePage={activePage}
-              onPageChange={(newPage) => setActivePage(newPage)}
-              boundingBoxes={chunks}
-              activeBoxId={activeBoxId}
-              scale={zoomScale}
-              onZoomChange={(newScale) => setZoomScale(newScale)}
-              onSelectBox={handleSelectBox}
-            />
+            {selectedDocIds.length >= 2 && docA && docB ? (
+              <DualPDFViewer
+                documentA={docA}
+                documentB={docB}
+                activeCitation={activeCitation}
+                citations={verifiedCitations}
+                boundingBoxes={chunks}
+                onSelectBox={handleSelectBox}
+                isCompact={isCompact}
+              />
+            ) : (
+              <PDFViewer
+                fileUrl={selectedDocument?.file || (selectedDocument?.file_path ? `/media/${selectedDocument.file_path}` : null)}
+                activePage={activePage}
+                onPageChange={(newPage) => setActivePage(newPage)}
+                boundingBoxes={chunks}
+                activeBoxId={activeBoxId}
+                scale={zoomScale}
+                onZoomChange={(newScale) => setZoomScale(newScale)}
+                onSelectBox={handleSelectBox}
+              />
+            )}
           </div>
         )}
 
