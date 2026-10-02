@@ -315,3 +315,24 @@ Never proceed to ticket $N+1$ until ticket $N$ passes all verification gate chec
   - `npm --prefix frontend test -- --run`
   - `powershell -ExecutionPolicy Bypass -File ./scripts/harness-check.ps1`
 
+---
+
+### TICKET-16: Deterministic Confidence Gater & Reduce-Stage Groq Handoff
+- **Status**: `[x] Complete`
+- **Scope**: Implement `ConfidenceGater` and `MultiDocReduceSynthesizer` for dual-system routing and multi-document map-reduce synthesis:
+  1. `apps/query/services/gater.py`: `ConfidenceGater` evaluating evidence bundles from `ConcurrentMapDispatcher` with threshold $\tau = 0.85$. Routes single-doc high-confidence queries to `SYSTEM_1_FAST_PATH` bypassing Groq, and escalates multi-doc or sub-threshold queries to `SYSTEM_2_FRONTIER`.
+  2. `apps/query/services/reducer.py`: `MultiDocReduceSynthesizer` assembling multi-document evidence prompts inside strict `<document_context id="..." title="...">` XML boundaries, invoking Groq SDK (`qwen/qwen3.8-27b`) for comparative analysis with standardized citations `[Ref:DocID:ChunkID:Page]`, and recording `REDUCE_SYNTHESIS` telemetry in `AuditBenchmarkLog`.
+  3. `tests/backend/test_ticket_16_gater.py`: Comprehensive test suite verifying high-confidence single-doc fast path bypass, low-confidence escalation, multi-doc auto-escalation, and prompt XML boundary isolation.
+- **Files**:
+  - `backend/apps/query/services/gater.py`
+  - `backend/apps/query/services/reducer.py`
+  - `backend/apps/query/services/__init__.py`
+  - `tests/backend/test_ticket_16_gater.py`
+- **Verification Gate**:
+  - `pytest tests/backend/test_ticket_16_gater.py -v --tb=short`
+  - `flake8 backend`
+  - `mypy backend`
+  - `npm --prefix frontend run lint`
+  - `npm --prefix frontend test -- --run`
+  - `powershell -ExecutionPolicy Bypass -File ./scripts/harness-check.ps1`
+
