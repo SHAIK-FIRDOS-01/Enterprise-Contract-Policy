@@ -62,3 +62,18 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Agent Harness & Metadata
+.agent/
+AGENTS.md
+docs/agents/
+docs/reports/
+
+# Temporary & Scratch Files
+scratch/
+.scratch/
+*.scratch
+
+# Local Test PDF Datasets
+New folder/
+
