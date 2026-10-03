@@ -4,10 +4,65 @@ Evaluates multi-document evidence bundles against configurable confidence thresh
 routing queries to SYSTEM_1_FAST_PATH (bypassing LLM inference for high-confidence single-doc facts)
 or escalating to SYSTEM_2_FRONTIER for cross-clause multi-document map-reduce synthesis.
 """
+import re
 from typing import Any, Dict, List, Optional
 from django.conf import settings
 
 from apps.query.services.verifier import CitationValidator
+
+
+def _score_candidate(candidate: str, query_words: set) -> float:
+    words = set(re.findall(r"\b[a-zA-Z0-9_]{2,}\b", candidate.lower()))
+    if not query_words or not words:
+        return 0.0
+    overlap = len(query_words.intersection(words))
+    score = overlap / len(query_words)
+    if re.search(r"[\$0-9]", candidate):
+        score += 0.2
+    return score
+
+
+def extract_focused_span(query: str, text: str, max_chars: int = 500) -> str:
+    """
+    Extracts the most relevant, concise text span matching query terms
+    instead of dumping an entire raw chunk.
+    """
+    cleaned = text.strip()
+    if len(cleaned) <= 150:
+        return cleaned
+
+    stopwords = {
+        "what", "is", "the", "of", "in", "for", "to", "a", "an", "and", "or",
+        "how", "much", "did", "tell", "me", "find", "show", "give", "are",
+        "were", "was", "be", "been", "being", "have", "has", "had", "do",
+        "does", "did", "at", "by", "with", "from", "as", "into", "about", "which",
+    }
+    raw_query = set(re.findall(r"\b[a-zA-Z0-9_]{2,}\b", query.lower()))
+    query_words = raw_query - stopwords or raw_query
+
+    candidates: List[str] = []
+    # 1. Paragraphs
+    candidates.extend(p.strip() for p in re.split(r"\n\s*\n", cleaned) if p.strip())
+    # 2. Sentences
+    candidates.extend(s.strip() for s in re.split(r"(?<=[.!?])\s+", cleaned) if len(s.strip()) > 20)
+    # 3. Line windows
+    raw_lines = [line.strip() for line in cleaned.splitlines() if line.strip()]
+    for i in range(len(raw_lines)):
+        candidates.append("\n".join(raw_lines[max(0, i - 2): min(len(raw_lines), i + 2)]))
+
+    best_candidate = ""
+    best_score = -1.0
+    for cand in candidates:
+        if len(cand) <= max_chars:
+            score = _score_candidate(cand, query_words)
+            if score > best_score:
+                best_score = score
+                best_candidate = cand
+
+    if best_candidate and best_score >= 0.4:
+        return best_candidate
+
+    return cleaned[:max_chars].strip() + ("..." if len(cleaned) > max_chars else "")
 
 
 class ConfidenceGater:
@@ -101,6 +156,22 @@ class ConfidenceGater:
                 "fast_path_payload": None,
             }
 
+        # Compound or multi-clause query patterns requiring LLM reasoning/synthesis
+        compound_patterns = [
+            r"\band\s+(?:how|what|why|where|when|who|which)\b",
+            r"\b(?:compare|contrast|difference|breakdown|reconcil)\b",
+            r"\?.*\?",
+        ]
+        if any(re.search(pat, query_clean, re.IGNORECASE) for pat in compound_patterns):
+            return {
+                "route": "SYSTEM_2_FRONTIER",
+                "confidence_score": 0.5,
+                "reason": "Compound query requires multi-clause reasoning and synthesis.",
+                "is_multi_doc": False,
+                "grounded_evidence": grounded_evidence,
+                "fast_path_payload": None,
+            }
+
         # Single document path: evaluate top chunk confidence
         top_chunk = all_chunks[0]
         text_content = top_chunk.get("text_content", "")
@@ -112,13 +183,15 @@ class ConfidenceGater:
         confidence_rounded = round(confidence_score, 4)
 
         if confidence_rounded >= self.threshold:
+            focused_span = extract_focused_span(query_clean, text_content)
+            formatted_span = f"**Direct Grounded Span** [Ref:1]:\n\n{focused_span}"
             fast_path_payload: Optional[Dict[str, Any]] = {
                 "document_id": str(top_chunk.get("document_id")),
                 "chunk_id": str(top_chunk.get("chunk_id")),
                 "document_title": top_chunk.get("document_title", ""),
                 "page_number": int(top_chunk.get("page_number", 1)),
                 "bounding_box": top_chunk.get("bounding_box", {}),
-                "extracted_span": text_content,
+                "extracted_span": formatted_span,
             }
             return {
                 "route": "SYSTEM_1_FAST_PATH",

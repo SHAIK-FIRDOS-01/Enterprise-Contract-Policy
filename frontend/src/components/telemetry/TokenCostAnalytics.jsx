@@ -52,7 +52,7 @@ export default function TokenCostAnalytics({ totals = {}, operationsBreakdown = 
           <div className="text-lg font-bold text-zinc-100 tabular-nums mt-0.5">
             {llmOps.toLocaleString()}
           </div>
-          <div className="text-[10px] text-zinc-500 mt-1">Groq LPUs Dispatched</div>
+          <div className="text-[10px] text-zinc-500 mt-1">Synthesis Requests</div>
         </div>
 
         <div className="p-3 rounded bg-zinc-950/70 border border-zinc-800/80">
@@ -66,24 +66,24 @@ export default function TokenCostAnalytics({ totals = {}, operationsBreakdown = 
         <div className="p-3 rounded bg-zinc-950/70 border border-zinc-800/80">
           <div className="text-[10px] text-zinc-500 uppercase">EFFECTIVE COST / 1K TOKENS</div>
           <div className="text-lg font-bold text-emerald-400 tabular-nums mt-0.5">
-            ${totalTokens > 0 ? ((totalCostUsd / totalTokens) * 1000).toFixed(4) : '0.0006'}
+            ${totalTokens > 0 ? ((totalCostUsd / totalTokens) * 1000).toFixed(4) : '0.0000'}
           </div>
-          <div className="text-[10px] text-zinc-500 mt-1">LPU Accelerated Tier</div>
+          <div className="text-[10px] text-zinc-500 mt-1">Standard Audit Tier</div>
         </div>
       </div>
 
-      {/* Model Roster & Architecture Specs */}
+      {/* Service Profile */}
       <div className="p-3 rounded bg-zinc-950 border border-zinc-800 flex flex-col md:flex-row md:items-center justify-between gap-2 text-xs font-mono">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 text-zinc-300">
-            <Zap className="w-3.5 h-3.5 text-amber-400" />
-            <span className="font-semibold">GROQ LPU CLUSTER:</span>
-            <span className="text-zinc-400">llama-3.3-70b-versatile</span>
+            <Zap className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="font-semibold">ENGINE:</span>
+            <span className="text-zinc-400">Hybrid RRF & LLM Pipeline</span>
           </div>
           <span className="text-zinc-600">|</span>
           <div className="flex items-center gap-1 text-zinc-400 text-[11px]">
-            <span>LOCAL VECTOR:</span>
-            <span className="text-zinc-300">all-MiniLM-L6-v2 (384-dim CPU)</span>
+            <span>RETRIEVAL:</span>
+            <span className="text-zinc-300">pgvector + tsvector Dense-Sparse Index</span>
           </div>
         </div>
 

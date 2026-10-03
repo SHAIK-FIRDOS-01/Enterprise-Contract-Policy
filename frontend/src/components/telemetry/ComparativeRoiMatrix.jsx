@@ -247,7 +247,7 @@ export default function ComparativeRoiMatrix({ initialData = null }) {
         <div className="flex items-center justify-between text-xs">
           <span className="font-semibold text-zinc-300 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
             <Cpu className="w-3.5 h-3.5 text-zinc-400" />
-            Worker Latency Decomposition by Target Document
+            Worker Latency Decomposition ({decomposition.length} {decomposition.length === 1 ? 'Target Document' : 'Target Documents'})
           </span>
           <span className="text-[10px] text-zinc-500">
             Per-Document Retrieval Duration vs Synthesis
@@ -257,7 +257,7 @@ export default function ComparativeRoiMatrix({ initialData = null }) {
         <div className="space-y-2 pt-1">
           {decomposition.length === 0 ? (
             <div className="text-xs text-zinc-500 py-3 text-center">
-              No multi-document retrieval latency data recorded yet.
+              No documents in corpus yet.
             </div>
           ) : (
             decomposition.map((item, idx) => {
@@ -273,10 +273,17 @@ export default function ComparativeRoiMatrix({ initialData = null }) {
               return (
                 <div key={idx} className="space-y-1">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-zinc-300 font-medium">{item.document}</span>
-                    <span className="text-zinc-400 tabular-nums">
-                      {Number(item.avg_retrieval_ms || 0).toFixed(1)}ms
-                    </span>
+                    <span className="text-zinc-300 font-medium truncate max-w-[65%]">{item.document}</span>
+                    <div className="flex items-center gap-2 font-mono">
+                      {item.query_count !== undefined && (
+                        <span className="text-[10px] text-zinc-500">
+                          {item.query_count} {item.query_count === 1 ? 'query' : 'queries'}
+                        </span>
+                      )}
+                      <span className="text-zinc-400 tabular-nums">
+                        {Number(item.avg_retrieval_ms || 0).toFixed(1)}ms
+                      </span>
+                    </div>
                   </div>
                   <div className="h-2 w-full bg-zinc-900 rounded-full overflow-hidden border border-zinc-800/80">
                     <div

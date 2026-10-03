@@ -193,7 +193,7 @@ class TelemetryService:
 
     @classmethod
     def _compute_metrics(
-        cls, logs: List[AuditBenchmarkLog], default_lat: float
+        cls, logs: List[AuditBenchmarkLog], default_lat: float = 0.0
     ) -> Dict[str, Any]:
         count = len(logs)
         avg_lat = (
@@ -215,6 +215,12 @@ class TelemetryService:
     def _compute_concurrency(
         cls, multi_doc_logs: List[AuditBenchmarkLog], total_dual: int
     ) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
+        from apps.documents.models import Document
+
+        # Query all documents in the corpus to dynamically reflect the exact uploaded document set
+        db_docs = list(Document.objects.all().order_by("created_at"))
+        doc_title_map = {str(d.id): d.title for d in db_docs}
+
         speedup_samples: List[float] = []
         total_workers_dispatched = 0
         total_worker_timeouts = 0
@@ -240,11 +246,12 @@ class TelemetryService:
 
             w_lats = meta.get("worker_latencies", {})
             if isinstance(w_lats, dict):
-                for idx, (doc_key, lat) in enumerate(w_lats.items()):
+                for doc_key, lat in w_lats.items():
                     total_workers_dispatched += 1
                     lat_f = float(lat)
                     worker_latencies_collected.append(lat_f)
-                    doc_label = f"Doc {chr(65 + (idx % 26))}"
+                    key_str = str(doc_key)
+                    doc_label = doc_title_map.get(key_str) or key_str
                     doc_latencies.setdefault(doc_label, []).append(lat_f)
 
         if speedup_samples:
@@ -252,12 +259,12 @@ class TelemetryService:
         elif total_wall_ms > 0 and total_worker_ms > 0:
             avg_speedup = round(total_worker_ms / total_wall_ms, 2)
         else:
-            avg_speedup = 2.45
+            avg_speedup = 1.0
 
         timeout_rate = (
             round(total_worker_timeouts / total_workers_dispatched, 4)
             if total_workers_dispatched > 0
-            else 0.008
+            else 0.0
         )
 
         if worker_latencies_collected:
@@ -267,33 +274,20 @@ class TelemetryService:
             )
             straggler_freq = round(stragglers / len(worker_latencies_collected), 4)
         else:
-            straggler_freq = 0.025
+            straggler_freq = 0.0
 
         avg_wall_clock_ms = (
             round(total_wall_ms / len(multi_doc_logs), 1)
             if multi_doc_logs and total_wall_ms > 0
-            else 68.4
+            else 0.0
         )
         avg_worker_sum_ms = (
             round(total_worker_ms / len(multi_doc_logs), 1)
             if multi_doc_logs and total_worker_ms > 0
-            else 167.5
+            else 0.0
         )
 
-        latency_decomp: List[Dict[str, Any]] = []
-        if doc_latencies:
-            for doc_lbl, lats in sorted(doc_latencies.items()):
-                latency_decomp.append({
-                    "document": doc_lbl,
-                    "avg_retrieval_ms": round(sum(lats) / len(lats), 1),
-                })
-        else:
-            latency_decomp = [
-                {"document": "Doc A", "avg_retrieval_ms": 64.2},
-                {"document": "Doc B", "avg_retrieval_ms": 72.8},
-                {"document": "Doc C", "avg_retrieval_ms": 67.5},
-                {"document": "Doc D", "avg_retrieval_ms": 69.1},
-            ]
+        latency_decomp = cls._build_latency_decomposition(doc_latencies)
 
         concurrency_metrics = {
             "avg_speedup_ratio": avg_speedup,
@@ -304,6 +298,38 @@ class TelemetryService:
             "avg_worker_sum_ms": avg_worker_sum_ms,
         }
         return concurrency_metrics, latency_decomp
+
+    @classmethod
+    def _build_latency_decomposition(
+        cls, doc_latencies: Dict[str, List[float]]
+    ) -> List[Dict[str, Any]]:
+        from apps.documents.models import Document
+
+        db_docs = list(Document.objects.all().order_by("created_at"))
+        latency_decomp: List[Dict[str, Any]] = []
+
+        if db_docs:
+            for idx, d in enumerate(db_docs):
+                title = d.title or f"Document {idx + 1}"
+                lats = (
+                    doc_latencies.get(title)
+                    or doc_latencies.get(str(d.id))
+                    or []
+                )
+                avg_retrieval = round(sum(lats) / len(lats), 1) if lats else 0.0
+                latency_decomp.append({
+                    "document": title,
+                    "avg_retrieval_ms": avg_retrieval,
+                    "query_count": len(lats),
+                })
+        elif doc_latencies:
+            for doc_lbl, lats in sorted(doc_latencies.items()):
+                latency_decomp.append({
+                    "document": doc_lbl,
+                    "avg_retrieval_ms": round(sum(lats) / len(lats), 1),
+                    "query_count": len(lats),
+                })
+        return latency_decomp
 
     @classmethod
     def _compute_roi(
@@ -317,37 +343,43 @@ class TelemetryService:
         sys2_count = int(sys2["count"])
         front_count = int(front["count"])
 
-        avg_tok = (
-            (sys2["total_tokens"] // sys2_count)
-            if sys2_count > 0
-            else ((front["total_tokens"] // front_count) if front_count > 0 else 1500)
-        )
+        if sys2_count > 0:
+            avg_tok = sys2["total_tokens"] // sys2_count
+        elif front_count > 0:
+            avg_tok = front["total_tokens"] // front_count
+        else:
+            avg_tok = 0
+
         tokens_saved = int(sys1_count * avg_tok)
 
-        dollar_savings_dec = calculate_groq_cost(
-            "llama-3.3-70b-versatile",
-            tokens_saved // 2,
-            tokens_saved // 2,
+        dollar_savings_dec = (
+            calculate_groq_cost(
+                "llama-3.3-70b-versatile",
+                tokens_saved // 2,
+                tokens_saved // 2,
+            )
+            if tokens_saved > 0
+            else Decimal("0.000000")
         )
 
         front_lat = float(front["avg_latency_ms"])
         sys1_lat = float(sys1["avg_latency_ms"])
-        if front_lat > 0:
+        if front_lat > 0 and sys1_lat > 0:
             lat_reduct_pct = round(max(0.0, ((front_lat - sys1_lat) / front_lat) * 100.0), 1)
         else:
-            lat_reduct_pct = 96.4
+            lat_reduct_pct = 0.0
 
         sys2_cost_dec = sys2["cost_decimal"]
         hypo_cost = (
             Decimal(str(total_dual)) * (sys2_cost_dec / max(1, sys2_count))
             if sys2_count > 0
-            else Decimal("0.100000")
+            else Decimal("0.000000")
         )
-        if hypo_cost > Decimal("0.000000"):
+        if hypo_cost > Decimal("0.000000") and sys2_cost_dec > Decimal("0.000000"):
             diff = max(Decimal("0.0"), hypo_cost - sys2_cost_dec)
             cost_reduct_pct = round(float((diff / hypo_cost) * Decimal("100.0")), 1)
         else:
-            cost_reduct_pct = 37.5
+            cost_reduct_pct = 0.0
 
         return {
             "tokens_saved": tokens_saved,
@@ -372,21 +404,21 @@ class TelemetryService:
 
         sys1_logs, sys2_logs, front_logs, multi_doc_logs = cls._partition_logs(all_logs)
 
-        sys1 = cls._compute_metrics(sys1_logs, default_lat=45.0)
-        sys2 = cls._compute_metrics(sys2_logs, default_lat=1180.0)
+        sys1 = cls._compute_metrics(sys1_logs, default_lat=0.0)
+        sys2 = cls._compute_metrics(sys2_logs, default_lat=0.0)
         front = cls._compute_metrics(
             front_logs,
-            default_lat=max(1250.0, float(sys2["avg_latency_ms"]) * 1.1),
+            default_lat=0.0,
         )
 
         total_dual = sys1["count"] + sys2["count"]
-        sys1_res_rate = (sys1["count"] / total_dual) if total_dual > 0 else 0.4
-        sys2_res_rate = (sys2["count"] / total_dual) if total_dual > 0 else 0.6
+        sys1_res_rate = (sys1["count"] / total_dual) if total_dual > 0 else 0.0
+        sys2_res_rate = (sys2["count"] / total_dual) if total_dual > 0 else 0.0
         dual_avg_lat = (
             (sys1["avg_latency_ms"] * sys1["count"] + sys2["avg_latency_ms"] * sys2["count"])
             / total_dual
             if total_dual > 0
-            else 750.0
+            else 0.0
         )
 
         concurrency_metrics, latency_decomp = cls._compute_concurrency(multi_doc_logs, total_dual)

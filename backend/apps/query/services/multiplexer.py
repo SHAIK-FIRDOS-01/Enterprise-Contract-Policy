@@ -17,6 +17,7 @@ from uuid import UUID
 
 from django.conf import settings
 
+from apps.query.services.citation import extract_heading_from_text
 from apps.query.services.dispatcher import ConcurrentMapDispatcher
 from apps.query.services.gater import ConfidenceGater
 from apps.query.services.reducer import MultiDocReduceSynthesizer
@@ -73,6 +74,7 @@ class MultiTargetSSEMultiplexer:
         page_number: int,
         bounding_box: Dict[str, Any],
         text_snippet: str,
+        section_heading: Optional[str] = None,
     ) -> str:
         """Encodes citation metadata with document ID tagging."""
         norm_box = {
@@ -90,6 +92,7 @@ class MultiTargetSSEMultiplexer:
                 "page_number": int(page_number),
                 "bounding_box": norm_box,
                 "text_snippet": str(text_snippet),
+                "section_heading": str(section_heading or "General Clause"),
             },
         )
 
@@ -214,6 +217,7 @@ class MultiTargetSSEMultiplexer:
                 page_num = int(chunk.get("page_number", 1))
                 bbox = chunk.get("bounding_box", {})
                 snippet = str(chunk.get("text_content", ""))[:200]
+                heading = extract_heading_from_text(str(chunk.get("text_content", "")))
                 yield self.format_citation(
                     citation_id=chunk_id,
                     ref_index=ref_idx,
@@ -221,6 +225,7 @@ class MultiTargetSSEMultiplexer:
                     page_number=page_num,
                     bounding_box=bbox,
                     text_snippet=snippet,
+                    section_heading=heading,
                 )
                 ref_idx += 1
 

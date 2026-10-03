@@ -35,7 +35,7 @@ export async function streamContractQuery({
       payload.document_id = documentId;
     }
 
-    const response = await fetch('/api/query/stream/', {
+    let response = await fetch('/api/query/stream/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -45,6 +45,31 @@ export async function streamContractQuery({
       body: JSON.stringify(payload),
       signal,
     });
+
+    // If 401 Unauthorized, attempt refresh once via /api/auth/token/refresh/ and retry
+    if (response.status === 401) {
+      try {
+        const refreshRes = await fetch('/api/auth/token/refresh/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+        if (refreshRes.ok) {
+          response = await fetch('/api/query/stream/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Accept: 'text/event-stream',
+            },
+            credentials: 'include',
+            body: JSON.stringify(payload),
+            signal,
+          });
+        }
+      } catch {
+        // Fall through to error handler if refresh fails
+      }
+    }
 
     if (!response.ok) {
       const errJson = await response.json().catch(() => ({}));

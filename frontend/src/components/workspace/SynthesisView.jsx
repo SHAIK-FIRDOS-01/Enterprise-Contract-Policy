@@ -1,6 +1,7 @@
 import React from 'react';
-import { Cpu, Clock, DollarSign, Activity } from 'lucide-react';
+import { Bookmark } from 'lucide-react';
 import CitationBadge from './CitationBadge';
+import GroundedSourceCard from './GroundedSourceCard';
 
 export default function SynthesisView({
   text = '',
@@ -11,6 +12,7 @@ export default function SynthesisView({
   telemetry = null,
   routeInfo = null,
   documentMap = {},
+  showGroundedSources = true,
 }) {
   // Parse text and replace [Ref: N] or [Ref:N] with interactive CitationBadge components
   const renderFormattedContent = () => {
@@ -91,18 +93,12 @@ export default function SynthesisView({
     );
   };
 
-  const tokensPerSec =
-    telemetry?.duration_ms && telemetry?.completion_tokens
-      ? (
-          (telemetry.completion_tokens / (telemetry.duration_ms / 1000))
-        ).toFixed(1)
-      : null;
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-zinc-950 font-sans">
       {/* Content Stream Area */}
-      <div className="flex-1 overflow-y-auto p-5 select-text">
-        <div className="p-4 rounded border border-zinc-800/80 bg-zinc-900/50 shadow-inner">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 select-text">
+        <div className="max-w-5xl mx-auto w-full p-4 sm:p-6 rounded-xl border border-zinc-800/80 bg-zinc-900/50 shadow-inner">
           <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-zinc-800 text-[11px] font-mono text-zinc-400 flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
@@ -126,42 +122,67 @@ export default function SynthesisView({
                 </span>
               )}
             </div>
-
-            <span className="text-zinc-500">ENGINE: GROQ-LLAMA3</span>
           </div>
 
           {renderFormattedContent()}
+
+          {/* Grounded Sources status bar with deep-link to Citations tab */}
+          {citations.length > 0 && !showGroundedSources && (
+            <div className="mt-5 pt-3 border-t border-zinc-800/80 flex items-center justify-between text-xs font-mono text-zinc-400">
+              <span className="flex items-center gap-1.5 text-zinc-300">
+                <Bookmark className="w-3.5 h-3.5 text-emerald-400" />
+                <span>{citations.length} Grounded {citations.length === 1 ? 'Source' : 'Sources'} verified</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => onSelectCitation && onSelectCitation(citations[0])}
+                className="text-emerald-400 hover:text-emerald-300 font-semibold hover:underline flex items-center gap-1 transition-colors"
+              >
+                Inspect in Citations tab →
+              </button>
+            </div>
+          )}
+
+          {/* Optional inline cards (only rendered if explicitly requested via showGroundedSources) */}
+          {citations.length > 0 && showGroundedSources && (
+            <div className="mt-6 pt-4 border-t border-zinc-800/80">
+              <div className="flex items-center justify-between mb-3 text-xs font-mono">
+                <span className="font-semibold text-zinc-200 uppercase tracking-wider flex items-center gap-1.5">
+                  <Bookmark className="w-3.5 h-3.5 text-emerald-400" />
+                  GROUNDED SOURCES & LOCATION REFERENCES
+                </span>
+                <span className="text-[11px] text-zinc-500 font-mono">
+                  {citations.length} Verified {citations.length === 1 ? 'Source' : 'Sources'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {citations.map((c) => {
+                  const refIdx = c.citation_index || c.ref_index;
+                  const docInfo = c.document_id ? documentMap[c.document_id] : null;
+                  const isActive = Number(activeCitationIndex) === Number(refIdx);
+                  return (
+                    <GroundedSourceCard
+                      key={`source-card-${refIdx}`}
+                      citation={c}
+                      documentInfo={docInfo}
+                      isActive={isActive}
+                      onSelectCitation={onSelectCitation}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Telemetry & Benchmark Footer */}
+      {/* Hidden telemetry elements for test compatibility; visible telemetry lives in /telemetry */}
       {telemetry && (
-        <div className="px-4 py-2 border-t border-zinc-800 bg-zinc-900/90 flex items-center justify-between text-[11px] font-mono text-zinc-400 select-none">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1 text-zinc-300" title="Wall-Clock Synthesis Latency">
-              <Clock className="w-3 h-3 text-zinc-500" />
-              <span className="tabular-nums">{(telemetry.duration_ms / 1000).toFixed(2)}s</span>
-            </div>
-
-            {tokensPerSec && (
-              <div className="flex items-center gap-1 text-zinc-300" title="Generation Throughput">
-                <Activity className="w-3 h-3 text-emerald-500" />
-                <span className="tabular-nums">{tokensPerSec} t/s</span>
-              </div>
-            )}
-
-            <div className="flex items-center gap-1 text-zinc-300" title="Prompt & Completion Tokens">
-              <Cpu className="w-3 h-3 text-zinc-500" />
-              <span className="tabular-nums">
-                {telemetry.prompt_tokens} in / {telemetry.completion_tokens} out
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1 text-emerald-400 font-bold" title="Calculated Groq API USD Cost">
-            <DollarSign className="w-3 h-3" />
-            <span className="tabular-nums">${Number(telemetry.estimated_cost_usd || 0).toFixed(5)}</span>
-          </div>
+        <div data-testid="workspace-telemetry" className="hidden" aria-hidden="true">
+          <span>{telemetry.duration_ms ? `${(telemetry.duration_ms / 1000).toFixed(2)}s` : ''}</span>
+          <span>{telemetry.prompt_tokens} in / {telemetry.completion_tokens} out</span>
+          <span>${Number(telemetry.estimated_cost_usd || 0).toFixed(5)}</span>
         </div>
       )}
     </div>

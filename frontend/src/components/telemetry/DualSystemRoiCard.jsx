@@ -34,7 +34,7 @@ const COMPARISON_ROWS = [
     metric: 'Corpus Privacy & Data Boundary',
     manual: 'Third-party attorney exposure',
     frontier: 'Public cloud LLM training logs',
-    copilot: 'Zero-Leakage Local pgvector HNSW',
+    copilot: 'Zero-Leakage Dedicated Isolation',
     copilotHighlight: true,
   },
 ];
@@ -116,7 +116,7 @@ export default function DualSystemRoiCard({ economics = {} }) {
           <div className="text-base font-bold text-emerald-400 tabular-nums mt-0.5">
             ${actualCost.toFixed(6)}
           </div>
-          <div className="text-[10px] text-zinc-500 mt-1">Groq LPU + pgvector queries</div>
+          <div className="text-[10px] text-zinc-500 mt-1">Automated compliance queries</div>
         </div>
 
         <div className="p-3 rounded bg-zinc-950 border border-emerald-500/30 bg-emerald-950/10">

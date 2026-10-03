@@ -177,6 +177,7 @@ CELERY_TIMEZONE = TIME_ZONE
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
 GROQ_MODEL_NAME = GROQ_MODEL
+CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", "0.65"))
 
 # Embedding Configuration (HuggingFace / local)
 EMBEDDING_MODEL_NAME = os.getenv(

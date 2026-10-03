@@ -137,5 +137,35 @@ describe('Ticket 10: PDF Viewer & Document Management Suite', () => {
       fireEvent.change(fileInput, { target: { files: [oversizedFile] } });
       expect(screen.getByText(/File exceeds 25MB maximum limit/i)).toBeTruthy();
     });
+
+    it('supports selecting and batch uploading multiple PDF files at once (e.g. 8 PDFs)', () => {
+      const handleClose = vi.fn();
+      const handleSuccess = vi.fn();
+
+      render(
+        <DocumentUploadModal
+          isOpen={true}
+          onClose={handleClose}
+          onUploadSuccess={handleSuccess}
+        />
+      );
+
+      const fileInput = screen.getByTestId('file-drop-input');
+
+      // Select 8 valid PDF files
+      const mockFiles = Array.from({ length: 8 }, (_, i) =>
+        new File([`PDF test content ${i}`], `contract_${i + 1}.pdf`, {
+          type: 'application/pdf',
+        })
+      );
+
+      fireEvent.change(fileInput, { target: { files: mockFiles } });
+
+      // Verify that all 8 documents are queued
+      expect(screen.getByTestId('queued-counter').textContent).toMatch(/8 CONTRACTS QUEUED/i);
+      expect(screen.getByText('contract_1.pdf')).toBeTruthy();
+      expect(screen.getByText('contract_8.pdf')).toBeTruthy();
+      expect(screen.getByRole('button', { name: /INGEST 8 CONTRACTS/i })).toBeTruthy();
+    });
   });
 });

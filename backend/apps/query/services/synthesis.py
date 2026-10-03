@@ -24,7 +24,9 @@ Rules you MUST follow:
    [Ref:N], where N corresponds to the [Source N] reference number of the excerpt.
 4. Place citation markers immediately after the sentence or clause they support,
    e.g., "The limitation of liability is capped at total fees paid [Ref:1]."
-5. Be concise, objective, and adhere strictly to legal precision.
+5. Be concise, objective, and adhere strictly to legal precision. Keep the entire response
+   complete within 200 to 350 words, concluding all sentences and citations cleanly
+   without cutting off.
 """
 
 
@@ -57,17 +59,25 @@ class GroqSynthesisService:
             self._client = Groq(api_key=self.api_key or "gsk_dummy_key_for_testing")
         return self._client
 
-    def format_context(self, retrieved_chunks: List[SearchResult]) -> str:
+    def format_context(self, retrieved_chunks: List[SearchResult], max_chars: int = 12000) -> str:
         """Format retrieved search result chunks into structured numbered prompt context."""
         if not retrieved_chunks:
             return "No relevant context found."
 
-        context_blocks = []
+        context_blocks: List[str] = []
+        total_chars = 0
         for idx, chunk in enumerate(retrieved_chunks, start=1):
-            context_blocks.append(
+            text = chunk.text_content.strip()
+            if len(text) > 1500:
+                text = text[:1500] + "..."
+            block = (
                 f"[Source {idx}] (Document: '{chunk.document_title}', Page: {chunk.page_number}, "
-                f"Chunk: {chunk.chunk_index})\n{chunk.text_content.strip()}"
+                f"Chunk: {chunk.chunk_index})\n{text}"
             )
+            if total_chars + len(block) > max_chars and context_blocks:
+                break
+            context_blocks.append(block)
+            total_chars += len(block)
         return "\n\n".join(context_blocks)
 
     def build_prompt_messages(
@@ -111,6 +121,7 @@ class GroqSynthesisService:
                 model=self.model_name,
                 messages=messages,
                 temperature=temperature,
+                max_tokens=950,
                 stream=True,
                 stream_options={"include_usage": True},
             )
@@ -181,6 +192,7 @@ class GroqSynthesisService:
                 model=self.model_name,
                 messages=messages,
                 temperature=temperature,
+                max_tokens=800,
                 stream=True,
             )
 

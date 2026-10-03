@@ -164,6 +164,43 @@ def test_document_upload_success() -> None:
 
 
 @pytest.mark.django_db
+def test_document_batch_upload_success() -> None:
+    """Test 3b: POST /api/documents/upload/ supports batch upload of multiple PDFs (e.g. 8 files)."""
+    user = User.objects.create_user(
+        email="batch_uploader@enterprise.com",
+        password="ValidPassword123!",
+    )
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    # Prepare 8 distinct PDF uploads
+    files = [
+        SimpleUploadedFile(
+            name=f"Enterprise_Contract_{i + 1}.pdf",
+            content=f"%PDF-1.4 sample content for contract {i + 1}".encode("utf-8"),
+            content_type="application/pdf",
+        )
+        for i in range(8)
+    ]
+
+    response = client.post(
+        "/api/documents/upload/",
+        data={"files": files},
+        format="multipart",
+    )
+
+    assert response.status_code == 202
+    data: List[Dict[str, Any]] = response.json()
+    assert isinstance(data, list)
+    assert len(data) == 8
+
+    # Verify all 8 documents exist in database and are assigned to user
+    doc_ids = [item["id"] for item in data]
+    saved_docs = Document.objects.filter(id__in=doc_ids, user=user)
+    assert saved_docs.count() == 8
+
+
+@pytest.mark.django_db
 def test_document_upload_validation_errors() -> None:
     """Test 4: Non-PDF uploads and oversized files (>25MB) are rejected with HTTP 400."""
     user = User.objects.create_user(

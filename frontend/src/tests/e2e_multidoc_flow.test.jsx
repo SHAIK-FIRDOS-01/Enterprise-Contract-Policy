@@ -171,12 +171,6 @@ describe('Ticket 21: Frontend Split-Viewer & Multi-Stream E2E Flow', () => {
       expect(badgeB.textContent).toContain('DOC B');
     });
 
-    // Verify both split canvas panes exist
-    await waitFor(() => {
-      expect(screen.getByTestId('pane-doc-a')).toBeTruthy();
-      expect(screen.getByTestId('pane-doc-b')).toBeTruthy();
-    });
-
     // 2. Query Submission & Multiplexed SSE Streaming
     const streamSpy = vi.spyOn(streamingService, 'streamContractQuery').mockImplementation(
       async ({ onRoute, onWorkerStatus, onDelta, onVerification, onTelemetry, onDone }) => {
@@ -258,42 +252,33 @@ describe('Ticket 21: Frontend Split-Viewer & Multi-Stream E2E Flow', () => {
       expect(screen.getByTestId('citation-badge-2')).toBeTruthy();
     });
 
-    // 3. Split Canvas Verification:
-    // Clicking Citation 1 (targeting Doc A) navigates & highlights Pane A in cyan
+    // 3. Grounded Source Cards Verification:
+    // Verify Grounded Source Cards rendered for both Doc A and Doc B
+    await waitFor(() => {
+      const cardA = screen.getByTestId('grounded-source-card-1');
+      const cardB = screen.getByTestId('grounded-source-card-2');
+      expect(cardA).toBeTruthy();
+      expect(cardB).toBeTruthy();
+      expect(cardA.textContent).toContain('Doc A');
+      expect(cardB.textContent).toContain('Doc B');
+    });
+
+    // Clicking Citation 1 (targeting Doc A) focuses Grounded Source Card 1
     const citation1Btn = screen.getByTestId('citation-badge-1');
     fireEvent.click(citation1Btn);
 
     await waitFor(() => {
-      const boxA = screen.getByTestId('bounding-box-chunk-A1');
-      expect(boxA).toBeTruthy();
-      expect(boxA.className).toContain('border-cyan-400');
+      const cardA = screen.getByTestId('grounded-source-card-1');
+      expect(cardA.className).toContain('border-emerald-500/70');
     });
 
-    // Clicking Citation 2 (targeting Doc B) navigates & highlights Pane B in amber
+    // Clicking Citation 2 (targeting Doc B) focuses Grounded Source Card 2
     const citation2Btn = screen.getByTestId('citation-badge-2');
     fireEvent.click(citation2Btn);
 
     await waitFor(() => {
-      const boxB = screen.getByTestId('bounding-box-chunk-B1');
-      expect(boxB).toBeTruthy();
-      expect(boxB.className).toContain('border-amber-400');
-    });
-
-    // 4. Synchronized Scroll Toggle
-    const lockToggle = screen.getByTestId('lock-scroll-toggle');
-    expect(lockToggle.getAttribute('aria-pressed')).toBe('false');
-
-    // Enable Lock Scroll
-    fireEvent.click(lockToggle);
-    expect(lockToggle.getAttribute('aria-pressed')).toBe('true');
-
-    // Advance page in Pane A -> verifies mirror effect on Pane B
-    const nextPagePaneABtn = screen.getByTestId('next-page-pane-a');
-    fireEvent.click(nextPagePaneABtn);
-
-    await waitFor(() => {
-      const indicatorA = screen.getByTestId('page-indicator-pane-a');
-      expect(indicatorA.textContent).toContain('2 / 5');
+      const cardB = screen.getByTestId('grounded-source-card-2');
+      expect(cardB.className).toContain('border-emerald-500/70');
     });
   });
 });

@@ -157,16 +157,9 @@ describe('Ticket 13: Frontend End-to-End Workstation Flow Verification', () => {
       </BrowserRouter>
     );
 
-    // Wait for document dropdown to load
+    // Wait for document dock to load
     await waitFor(() => {
-      expect(screen.getByDisplayValue(/Master Services Agreement 2026\.pdf/i)).toBeTruthy();
-    });
-
-    // Check PDF viewer controls initial state: Page 1 of 3
-    await waitFor(() => {
-      const pageIndicator = screen.getByTestId('page-indicator');
-      expect(pageIndicator.textContent).toContain('1');
-      expect(pageIndicator.textContent).toContain('3');
+      expect(screen.getByText(/Master Services Agreement 2026\.pdf/i)).toBeTruthy();
     });
 
     // -----------------------------------------------------------------------
@@ -253,26 +246,17 @@ describe('Ticket 13: Frontend End-to-End Workstation Flow Verification', () => {
     expect(screen.getByText(/180 in \/ 42 out/i)).toBeTruthy();
 
     // -----------------------------------------------------------------------
-    // Stage 4: One-Click Citation Sync -> PDF Viewer Page Jump & Bounding Box Focus
+    // Stage 4: One-Click Citation Sync -> Focus Grounded Citation Card
     // -----------------------------------------------------------------------
-    // Viewer is initially on Page 1
-    const pageIndicatorInit = screen.getByTestId('page-indicator');
-    expect(pageIndicatorInit.textContent).toContain('1');
-
     // Click interactive [Ref: 1] badge
     fireEvent.click(citationBadge);
 
-    // Invariant Check 1: PDF Viewer immediately jumps to cited page (Page 2)
+    // Invariant Check: Grounded Source Card for Ref 1 is rendered and focused with active styling
     await waitFor(() => {
-      const pageIndicatorActive = screen.getByTestId('page-indicator');
-      expect(pageIndicatorActive.textContent).toContain('2');
+      const card = screen.getByTestId('grounded-source-card-1');
+      expect(card).toBeTruthy();
+      expect(card.className).toContain('border-emerald-500/70');
     });
-
-    // Invariant Check 2: Active bounding box is rendered with emerald glow
-    const boundingBox = await screen.findByTestId('bounding-box-chunk-uuid-999');
-    expect(boundingBox).toBeTruthy();
-    expect(boundingBox.className).toContain('border-emerald-400');
-    expect(boundingBox.className).toContain('bg-emerald-500/30');
 
     // -----------------------------------------------------------------------
     // Stage 5: Switch to Citation Inspector Tab

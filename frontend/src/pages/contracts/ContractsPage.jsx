@@ -81,7 +81,7 @@ export const ContractsPage = () => {
             Contract & Policy Documents Ingestion Repository
           </h1>
           <p className="text-xs text-zinc-400 font-mono mt-0.5">
-            Vectorized legal corpus with PyMuPDF coordinate bounding-box extraction & pgvector HNSW indexing
+            Enterprise contract repository and compliance policy document management
           </p>
         </div>
 

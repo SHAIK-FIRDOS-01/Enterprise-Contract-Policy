@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { FileText, ShieldCheck, Activity, Layers } from 'lucide-react';
+import { FileText, ShieldCheck, Activity } from 'lucide-react';
 
 const NAV_ITEMS = [
   {
@@ -57,27 +57,6 @@ export const SidebarNav = () => {
               </NavLink>
             );
           })}
-        </div>
-
-        {/* System Hardware / Runtime Specs */}
-        <div className="p-3 border-t border-zinc-800/80">
-          <div className="p-2.5 rounded bg-zinc-950/60 border border-zinc-800/80 space-y-1 text-[11px] font-mono">
-            <div className="flex items-center justify-between text-zinc-500">
-              <span className="flex items-center space-x-1">
-                <Layers className="w-3 h-3" />
-                <span>STACK</span>
-              </span>
-              <span className="text-zinc-300">DUAL-RAG</span>
-            </div>
-            <div className="flex items-center justify-between text-zinc-500">
-              <span>ENGINE</span>
-              <span className="text-emerald-400">HYBRID RRF</span>
-            </div>
-            <div className="flex items-center justify-between text-zinc-500">
-              <span>VERSION</span>
-              <span className="text-zinc-300">v0.1.0-STABLE</span>
-            </div>
-          </div>
         </div>
       </aside>
 

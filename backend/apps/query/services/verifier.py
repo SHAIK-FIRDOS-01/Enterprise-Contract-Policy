@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 
 from apps.analytics.services.telemetry import track_telemetry
 from apps.documents.services.embedding import VectorEmbeddingService
-from apps.query.services.citation import CitationEngine
+from apps.query.services.citation import CitationEngine, extract_heading_from_text
 from apps.search.services.hybrid_search import SearchResult
 
 
@@ -33,6 +33,10 @@ class VerificationResult:
     semantic_score: float
     confidence_score: float
     status: ConfidenceLevel
+    page_number: int = 1
+    document_id: Optional[str] = None
+    document_title: Optional[str] = None
+    section_heading: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert VerificationResult into a JSON-serializable dictionary."""
@@ -44,6 +48,15 @@ class VerificationResult:
             "semantic_score": round(self.semantic_score, 4),
             "confidence_score": round(self.confidence_score, 4),
             "status": self.status.value,
+            "page_number": self.page_number,
+            "document_id": str(self.document_id) if self.document_id else None,
+            "document_title": self.document_title,
+            "section_heading": self.section_heading or "General Clause",
+            "text_snippet": (
+                self.source_chunk_text[:220] + "..."
+                if len(self.source_chunk_text) > 220
+                else self.source_chunk_text
+            ),
         }
 
 
@@ -178,6 +191,10 @@ class CitationValidator:
                             source_chunk_text=chunk.text_content,
                             bounding_box=chunk.bounding_box,
                         )
+                        res.page_number = chunk.page_number
+                        res.document_id = str(chunk.document_id)
+                        res.document_title = chunk.document_title
+                        res.section_heading = extract_heading_from_text(chunk.text_content)
                         results.append(res)
                     else:
                         # Out of range citation marker is by definition rejected

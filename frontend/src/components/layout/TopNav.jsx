@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Terminal, Database, LogOut, Shield } from 'lucide-react';
+import { Terminal, LogOut, Shield } from 'lucide-react';
 
 export const TopNav = () => {
   const { user, logout } = useAuth();
@@ -19,30 +19,16 @@ export const TopNav = () => {
 
         <div className="hidden sm:block h-4 w-px bg-zinc-800" />
 
-        <div className="flex items-center space-x-2 sm:space-x-3 text-[10px] sm:text-[11px] font-mono">
+        <div className="flex items-center space-x-2 text-[10px] sm:text-[11px] font-mono">
           <span className="flex items-center space-x-1.5 text-zinc-400 flex-shrink-0">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="hidden xs:inline">CORE: </span><span>ACTIVE</span>
-          </span>
-          <span className="hidden lg:flex items-center space-x-1.5 text-zinc-400">
-            <Database className="w-3 h-3 text-zinc-500" />
-            <span>PGVECTOR: 384-DIM HNSW</span>
+            <span className="hidden xs:inline">SYSTEM: </span><span>ONLINE</span>
           </span>
         </div>
       </div>
 
-      {/* Telemetry Ticker & User Badge */}
+      {/* User Badge & Controls */}
       <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
-        <div className="flex items-center space-x-1.5 sm:space-x-3 text-[10px] sm:text-[11px] font-mono text-zinc-400 tabular-nums">
-          <span className="px-1.5 sm:px-2 py-0.5 rounded bg-zinc-950 border border-zinc-800">
-            RRF: <span className="text-zinc-200">K=60</span>
-          </span>
-          <span className="hidden md:inline px-2 py-0.5 rounded bg-zinc-950 border border-zinc-800">
-            GROQ: <span className="text-emerald-400">LLAMA-3.3-70B</span>
-          </span>
-        </div>
-
-        <div className="h-4 w-px bg-zinc-800" />
 
         {user && (
           <div className="flex items-center space-x-2 sm:space-x-3">

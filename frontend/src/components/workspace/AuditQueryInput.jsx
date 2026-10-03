@@ -1,11 +1,5 @@
 import React, { useRef } from 'react';
-import { Send, Square, Sparkles } from 'lucide-react';
-
-const AUDIT_PLAYBOOKS = [
-  'Audit Indemnification Caps & Aggregate Liability Limits',
-  'Check Governing Law, Dispute Resolution & Jurisdiction',
-  'Verify Non-Compete, Confidentiality & Termination Terms',
-];
+import { Send, Square } from 'lucide-react';
 
 export default function AuditQueryInput({
   query = '',
@@ -26,38 +20,11 @@ export default function AuditQueryInput({
     }
   };
 
-  const handlePlaybookClick = (prompt) => {
-    if (onQueryChange) {
-      onQueryChange(prompt);
-    }
-    if (textareaRef.current) {
-      textareaRef.current.focus();
-    }
-  };
-
   const isSubmitDisabled = disabled || !query.trim() || isStreaming;
 
   return (
-    <div className="border-t border-zinc-800 bg-zinc-900/90 p-3 space-y-2.5 font-sans">
-      {/* Preset Playbook Buttons */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] font-mono scrollbar-none">
-        <span className="text-zinc-500 flex items-center gap-1 flex-shrink-0 text-[10px]">
-          <Sparkles className="w-3 h-3 text-amber-400" />
-          PLAYBOOKS:
-        </span>
-        {AUDIT_PLAYBOOKS.map((pb, idx) => (
-          <button
-            key={idx}
-            type="button"
-            disabled={isStreaming || disabled}
-            onClick={() => handlePlaybookClick(pb)}
-            className="px-2 py-0.5 rounded bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-zinc-200 transition-colors whitespace-nowrap text-[10px] flex-shrink-0 disabled:opacity-40"
-          >
-            {pb}
-          </button>
-        ))}
-      </div>
-
+    <div className="border-t border-zinc-800 bg-zinc-900/90 p-3 sm:p-4 font-sans">
+      <div className="max-w-5xl mx-auto w-full space-y-2.5">
       {/* Input Area */}
       <div className="relative rounded border border-zinc-800 bg-zinc-950 focus-within:border-zinc-700 focus-within:ring-1 focus-within:ring-zinc-400/50 transition-all">
         <textarea
@@ -104,6 +71,7 @@ export default function AuditQueryInput({
             )}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

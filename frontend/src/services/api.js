@@ -21,20 +21,62 @@ export const subscribeToAuthFailure = (callback) => {
   return () => authListeners.delete(callback);
 };
 
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve();
+    }
+  });
+  failedQueue = [];
+};
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    // Notify listeners if request failed with 401 Unauthorized, not already retrying,
-    // and not an initial bootstrap check on /api/auth/me/
-    if (
-      error.response?.status === 401 &&
-      !originalRequest?._retry &&
-      !originalRequest?.url?.includes('/api/auth/me/')
-    ) {
+
+    // Do not attempt token refresh for auth endpoints or if already retried
+    const isAuthRoute =
+      originalRequest?.url?.includes('/api/auth/login/') ||
+      originalRequest?.url?.includes('/api/auth/register/') ||
+      originalRequest?.url?.includes('/api/auth/refresh/') ||
+      originalRequest?.url?.includes('/api/auth/me/');
+
+    if (error.response?.status === 401 && !originalRequest?._retry && !isAuthRoute) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then(() => api(originalRequest))
+          .catch((err) => Promise.reject(err));
+      }
+
       originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        await api.post('/api/auth/refresh/');
+        processQueue(null);
+        return api(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError);
+        authListeners.forEach((callback) => callback(refreshError));
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    // If persistent 401 on retried request, notify listeners to clear session
+    if (error.response?.status === 401 && originalRequest?._retry && !isAuthRoute) {
       authListeners.forEach((callback) => callback(error));
     }
+
     return Promise.reject(error);
   }
 );

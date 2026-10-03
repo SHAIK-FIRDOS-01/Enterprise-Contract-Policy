@@ -29,7 +29,7 @@ class ConcurrentMapDispatcher:
         self,
         worker: Optional[DocumentAuditWorker] = None,
         max_workers: Optional[int] = None,
-        default_timeout: float = 0.25,  # 250ms default ceiling
+        default_timeout: float = 15.0,  # 15.0s ceiling for CPU embedding & DB retrieval
     ) -> None:
         self.worker = worker or DocumentAuditWorker()
         cpu_count = os.cpu_count() or 1

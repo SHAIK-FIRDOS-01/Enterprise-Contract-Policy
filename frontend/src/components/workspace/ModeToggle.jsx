@@ -36,7 +36,7 @@ export default function ModeToggle({
             ? 'bg-zinc-800 text-emerald-400 font-semibold shadow-sm border border-emerald-500/30'
             : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 border border-transparent'
         } disabled:opacity-50 disabled:cursor-not-allowed`}
-        title="Autonomous dual-system RAG: System 1 fast path triage with dynamic System 2 Groq escalation."
+        title="Automated compliance intelligence: fast-path clause retrieval with deep synthesis escalation."
       >
         <Zap className={`w-3 h-3 ${isDual ? 'text-emerald-400 fill-emerald-400/20' : 'text-zinc-500'}`} />
         <span>DUAL-SYSTEM (AUTONOMOUS)</span>
@@ -53,7 +53,7 @@ export default function ModeToggle({
             ? 'bg-zinc-800 text-amber-400 font-semibold shadow-sm border border-amber-500/30'
             : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 border border-transparent'
         } disabled:opacity-50 disabled:cursor-not-allowed`}
-        title="Forces all queries directly to System 2 Groq reduce synthesis for baseline benchmarking."
+        title="Comprehensive frontier mode: routes all queries through deep multi-document analysis."
       >
         <Cpu className={`w-3 h-3 ${isFrontier ? 'text-amber-400' : 'text-zinc-500'}`} />
         <span>FRONTIER-ONLY (BENCHMARK)</span>

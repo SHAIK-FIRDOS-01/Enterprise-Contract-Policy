@@ -166,7 +166,6 @@ describe('Ticket 14-R: Responsive Web Layout, High-DPI Coordinate Normalization,
 
     // On compact screens (< 1280px), segmented controls should be present
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /DOCUMENT VIEWER/i })).toBeTruthy();
       expect(screen.getByRole('button', { name: /AUDIT COPILOT/i })).toBeTruthy();
       expect(screen.getByRole('button', { name: /CITATIONS/i })).toBeTruthy();
     });
@@ -185,18 +184,15 @@ describe('Ticket 14-R: Responsive Web Layout, High-DPI Coordinate Normalization,
     // Verify Citations pane renders empty or citation list
     expect(screen.getByText(/No citations generated for this query/i)).toBeTruthy();
 
-    // Toggle back to DOCUMENT VIEWER
-    const viewerTabBtn = screen.getByRole('button', { name: /DOCUMENT VIEWER/i });
-    fireEvent.click(viewerTabBtn);
-
-    // Verify PDF viewer controls are active
-    expect(screen.getByTestId('page-indicator')).toBeTruthy();
+    // Toggle back to AUDIT COPILOT
+    fireEvent.click(copilotTabBtn);
+    expect(screen.getByPlaceholderText(/Ask compliance or legal questions/i)).toBeTruthy();
   });
 
   // -------------------------------------------------------------------------
-  // Test 3: Citation selection on compact screens automatically transitions to document viewer
+  // Test 3: Citation selection on compact screens selects citation
   // -------------------------------------------------------------------------
-  it('automatically transitions active tab to document viewer when citation is clicked on compact viewports', async () => {
+  it('selects and activates citation when clicked on compact viewports', async () => {
     // Set compact screen width (768px)
     window.innerWidth = 768;
     window.dispatchEvent(new Event('resize'));
@@ -276,12 +272,81 @@ describe('Ticket 14-R: Responsive Web Layout, High-DPI Coordinate Normalization,
     // Click the citation badge while on COPILOT view
     fireEvent.click(citationBadge);
 
-    // Invariant: The active tab MUST automatically switch to DOCUMENT VIEWER!
+    // Invariant: The Grounded Source Card for Ref 1 is rendered and focused
     await waitFor(() => {
-      const viewerTabBtn = screen.getByRole('button', { name: /DOCUMENT VIEWER/i });
-      expect(viewerTabBtn.className).toContain('bg-zinc-800');
-      const pageIndicator = screen.getByTestId('page-indicator');
-      expect(pageIndicator.textContent).toContain('2');
+      const card = screen.getByTestId('grounded-source-card-1');
+      expect(card).toBeTruthy();
+      expect(card.className).toContain('border-emerald-500/70');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Test 4: Responsive navigation between Copilot and Citations tabs on compact viewports
+  // -------------------------------------------------------------------------
+  it('switches seamlessly between Copilot and Citations tabs on compact viewports', async () => {
+    // Set compact screen width (800px)
+    window.innerWidth = 800;
+    window.dispatchEvent(new Event('resize'));
+
+    const mockDocs = [
+      {
+        id: 'doc-responsive-3',
+        title: 'Master Service Agreement.pdf',
+        file: 'https://storage.enterprise.internal/contracts/msa.pdf',
+        status: 'READY',
+        page_count: 3,
+      },
+    ];
+
+    vi.spyOn(api, 'get').mockImplementation((url) => {
+      if (url === '/api/documents/') {
+        return Promise.resolve({ data: mockDocs });
+      }
+      if (url === '/api/documents/doc-responsive-3/chunks/') {
+        return Promise.resolve({ data: [] });
+      }
+      if (url === '/api/auth/me/') {
+        return Promise.resolve({
+          data: { id: 'u1', email: 'auditor@enterprise.com', role: 'AUDITOR' },
+        });
+      }
+      return Promise.reject(new Error(`Unhandled URL: ${url}`));
+    });
+
+    render(
+      <BrowserRouter>
+        <AuthProvider>
+          <WorkspacePage />
+        </AuthProvider>
+      </BrowserRouter>
+    );
+
+    // Initial state on compact screen: Segmented controls visible
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /AUDIT COPILOT/i })).toBeTruthy();
+      expect(screen.getByRole('button', { name: /CITATIONS/i })).toBeTruthy();
+    });
+
+    // Verify Copilot query input is active
+    expect(screen.getByPlaceholderText(/Ask compliance or legal questions/i)).toBeTruthy();
+
+    // Switch to Citations tab
+    const citationsTabBtn = screen.getByRole('button', { name: /CITATIONS/i });
+    fireEvent.click(citationsTabBtn);
+
+    await waitFor(() => {
+      expect(citationsTabBtn.className).toContain('bg-zinc-800');
+      expect(screen.getByText(/No citations generated for this query/i)).toBeTruthy();
+    });
+
+    // Switch back to Copilot tab
+    const copilotTabBtn = screen.getByRole('button', { name: /AUDIT COPILOT/i });
+    fireEvent.click(copilotTabBtn);
+
+    await waitFor(() => {
+      expect(copilotTabBtn.className).toContain('bg-zinc-800');
+      expect(screen.getByPlaceholderText(/Ask compliance or legal questions/i)).toBeTruthy();
     });
   });
 });
+

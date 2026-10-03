@@ -3,21 +3,37 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { streamContractQuery } from '../../services/streaming';
 import useResponsiveViewport from '../../hooks/useResponsiveViewport';
-import PDFViewer from '../../components/viewer/PDFViewer';
-import DualPDFViewer from '../../components/viewer/DualPDFViewer';
 import AuditQueryInput from '../../components/workspace/AuditQueryInput';
 import SynthesisView from '../../components/workspace/SynthesisView';
 import CitationInspector from '../../components/workspace/CitationInspector';
-import AuditAuditTrail from '../../components/workspace/AuditAuditTrail';
 import DocumentSelectorDock from '../../components/workspace/DocumentSelectorDock';
-import ModeToggle from '../../components/workspace/ModeToggle';
 import {
-  Layers,
   Terminal,
-  ChevronDown,
   ListFilter,
-  CheckCircle2,
 } from 'lucide-react';
+
+const getStoredMode = () => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage && typeof window.localStorage.getItem === 'function') {
+      return window.localStorage.getItem('operational_mode') || 'DUAL_SYSTEM';
+    }
+  } catch {
+    // Fallback for environments where localStorage is restricted
+  }
+  return 'DUAL_SYSTEM';
+};
+
+const loadStoredCitationHistory = () => {
+  try {
+    if (typeof window !== 'undefined' && window.sessionStorage && typeof window.sessionStorage.getItem === 'function') {
+      const raw = window.sessionStorage.getItem('audit_copilot_citation_history');
+      if (raw) return JSON.parse(raw);
+    }
+  } catch {
+    // Fallback if sessionStorage is restricted
+  }
+  return [];
+};
 
 export default function WorkspacePage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -35,38 +51,40 @@ export default function WorkspacePage() {
   const [activeViewerDocId, setActiveViewerDocId] = useState(
     searchParams.get('doc') || selectedDocIds[0] || ''
   );
-  const [selectedDocument, setSelectedDocument] = useState(null);
-  const [chunks, setChunks] = useState([]);
 
-  // Multi-Document Worker & Routing State
-  const [operationalMode, setOperationalMode] = useState('DUAL_SYSTEM'); // 'DUAL_SYSTEM' | 'FRONTIER_ONLY'
+  // Multi-Document Worker & Routing State (Synchronized with Telemetry Benchmark Mode)
+  const [operationalMode, setOperationalMode] = useState(getStoredMode);
   const [workerStatuses, setWorkerStatuses] = useState({});
   const [routeInfo, setRouteInfo] = useState(null);
 
-  // PDF Viewer State
-  const [activePage, setActivePage] = useState(1);
-  const [activeBoxId, setActiveBoxId] = useState(null);
-  const [zoomScale, setZoomScale] = useState(1.0);
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setOperationalMode(getStoredMode());
+    };
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+      window.addEventListener('storage', handleStorageChange);
+      return () => window.removeEventListener('storage', handleStorageChange);
+    }
+  }, []);
 
   // Synthesis & Query State
   const [query, setQuery] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [synthesisText, setSynthesisText] = useState('');
   const [verifiedCitations, setVerifiedCitations] = useState([]);
+  const [sessionQueryHistory, setSessionQueryHistory] = useState(loadStoredCitationHistory);
   const [activeCitationIndex, setActiveCitationIndex] = useState(null);
-  const [activeCitation, setActiveCitation] = useState(null);
+  const [, setActiveCitation] = useState(null);
   const [telemetry, setTelemetry] = useState(null);
   const [activeTab, setActiveTab] = useState('synthesis'); // 'synthesis' | 'citations'
 
-  // Responsive Viewport & Split-Pane Ergonomics (Ticket 14-R)
+  // Responsive Viewport (Compact viewports < 1024px)
   const { isCompact } = useResponsiveViewport();
-  const [compactTab, setCompactTab] = useState('viewer'); // 'viewer' | 'copilot' | 'citations'
-
-  // Session History
-  const [auditHistory, setAuditHistory] = useState([]);
-  const [selectedHistoryIndex, setSelectedHistoryIndex] = useState(-1);
+  const [compactTab, setCompactTab] = useState('copilot'); // 'copilot' | 'citations'
 
   const abortControllerRef = useRef(null);
+  const verifiedCitationsRef = useRef([]);
+  const routeInfoRef = useRef(null);
 
   // Document labels mapping (Doc A, Doc B, Doc C, etc.)
   const documentMap = useMemo(() => {
@@ -81,15 +99,6 @@ export default function WorkspacePage() {
     });
     return map;
   }, [selectedDocIds, documents]);
-
-  const docA = useMemo(
-    () => documents.find((d) => d.id === selectedDocIds[0]) || null,
-    [documents, selectedDocIds]
-  );
-  const docB = useMemo(
-    () => documents.find((d) => d.id === selectedDocIds[1]) || null,
-    [documents, selectedDocIds]
-  );
 
   // Fetch ready documents for dropdown & multi-target selection
   const fetchDocuments = useCallback(async () => {
@@ -108,71 +117,32 @@ export default function WorkspacePage() {
           const paramDocs = searchParams.get('docs')?.split(',').filter(Boolean);
           let initial = [];
           if (paramDocs && paramDocs.length > 0) {
-            initial = paramDocs;
-          } else if (paramDoc) {
+            initial = paramDocs.filter((id) => readyDocs.some((d) => d.id === id));
+          } else if (paramDoc && readyDocs.some((d) => d.id === paramDoc)) {
             initial = [paramDoc];
-          } else {
-            // Default 2 documents (e.g., FY25 vs FY26) per spec
-            initial = readyDocs.slice(0, 2).map((d) => d.id);
           }
-          setActiveViewerDocId(initial[0]);
-          setSearchParams(
-            { doc: initial[0], docs: initial.join(',') },
-            { replace: true }
-          );
+          if (initial.length === 0) {
+            initial = [readyDocs[0].id];
+          }
           return initial;
         });
+
+        setActiveViewerDocId((prev) => {
+          if (prev && readyDocs.some((d) => d.id === prev)) return prev;
+          const paramDoc = searchParams.get('doc');
+          if (paramDoc && readyDocs.some((d) => d.id === paramDoc)) return paramDoc;
+          return readyDocs[0].id;
+        });
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      // Ingestion or network error handled gracefully
     }
-  }, [searchParams, setSearchParams]);
+  }, [searchParams]);
 
   useEffect(() => {
     fetchDocuments();
   }, [fetchDocuments]);
 
-  // Load document details and base chunks whenever activeViewerDocId changes
-  useEffect(() => {
-    if (!activeViewerDocId) {
-      setSelectedDocument(null);
-      setChunks([]);
-      return;
-    }
-
-    const doc = documents.find((d) => d.id === activeViewerDocId);
-    if (doc) {
-      setSelectedDocument(doc);
-    }
-
-    api
-      .get(`/api/documents/${activeViewerDocId}/chunks/`)
-      .then((res) => {
-        const chunkData = Array.isArray(res.data)
-          ? res.data
-          : res.data.results || [];
-        setChunks(chunkData);
-      })
-      .catch(() => {
-        setChunks([]);
-      });
-  }, [activeViewerDocId, documents]);
-
-  const handleSelectDocument = (e) => {
-    const newDocId = e.target.value;
-    if (!newDocId) return;
-    setActiveViewerDocId(newDocId);
-    setActivePage(1);
-    setActiveBoxId(null);
-    setSelectedDocIds((prev) => {
-      const updated = prev.includes(newDocId) ? prev : [...prev, newDocId];
-      setSearchParams(
-        { doc: newDocId, docs: updated.join(',') },
-        { replace: true }
-      );
-      return updated;
-    });
-  };
 
   const handleToggleDocument = (docId) => {
     setSelectedDocIds((prev) => {
@@ -196,8 +166,6 @@ export default function WorkspacePage() {
 
   const handleSelectViewerDoc = (docId) => {
     setActiveViewerDocId(docId);
-    setActivePage(1);
-    setActiveBoxId(null);
     setSearchParams((prevParams) => {
       const p = new URLSearchParams(prevParams);
       p.set('doc', docId);
@@ -205,16 +173,15 @@ export default function WorkspacePage() {
     }, { replace: true });
   };
 
-  // ONE-CLICK CITATION SYNCHRONIZATION INVARIANT:
-  // Immediately jumps PDF viewer to citation's document & page, and highlights bounding box
+  // ONE-CLICK CITATION SYNCHRONIZATION:
+  // Highlights active citation card and syncs document selection
   const handleSelectCitation = (citation) => {
     if (!citation) return;
 
     setActiveCitation(citation);
-    const citationIndex = citation.citation_index || citation.citationIndex;
+    const citationIndex = citation.citation_index || citation.ref_index;
     setActiveCitationIndex(citationIndex);
 
-    // If citation targets a different document, switch the PDF viewer
     const targetDocId = citation.document_id || citation.documentId;
     if (targetDocId && targetDocId !== activeViewerDocId) {
       setActiveViewerDocId(targetDocId);
@@ -222,64 +189,43 @@ export default function WorkspacePage() {
         setSelectedDocIds((prev) => [...prev, targetDocId]);
       }
     }
-
-    // If on compact viewport, automatically switch active tab to DOCUMENT VIEWER
-    if (isCompact) {
-      setCompactTab('viewer');
-    }
-
-    // Jump page
-    const pageNum = Number(citation.page_number);
-    if (pageNum && pageNum > 0) {
-      setActivePage(pageNum);
-    }
-
-    // Set active bounding box ID for emerald glow
-    const boxId = citation.chunk_id || citation.citation_id || `chunk-${citationIndex}`;
-    setActiveBoxId(boxId);
-
-    // Ensure citation chunk exists in boundingBoxes list so canvas renders it
-    if (citation.bounding_box && Object.keys(citation.bounding_box).length > 0) {
-      setChunks((prev) => {
-        const exists = prev.some((c) => c.id === boxId || c.chunk_id === boxId);
-        if (!exists) {
-          return [
-            ...prev,
-            {
-              id: boxId,
-              chunk_id: boxId,
-              page_number: pageNum,
-              bounding_box: citation.bounding_box,
-              text_content: citation.text_snippet || citation.extracted_claim || '',
-              status: citation.status,
-              confidence: citation.confidence,
-              chunk_index: citationIndex,
-            },
-          ];
-        }
-        return prev;
-      });
-    }
   };
 
-  // Handle click directly on canvas bounding box
-  const handleSelectBox = (boxId, boxData) => {
-    setActiveBoxId(boxId);
-    if (boxData?.page_number) {
-      setActivePage(Number(boxData.page_number));
+  const handleClearCitationHistory = useCallback(() => {
+    setSessionQueryHistory([]);
+    setVerifiedCitations([]);
+    verifiedCitationsRef.current = [];
+    try {
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        window.sessionStorage.removeItem('audit_copilot_citation_history');
+      }
+    } catch (_err) {
+      // Fallback if storage access is restricted
     }
-    if (boxData?.chunk_index) {
-      setActiveCitationIndex(boxData.chunk_index);
+  }, []);
+
+  // Total session citations count across all questions
+  const totalCitationsCount = useMemo(() => {
+    const historical = sessionQueryHistory.reduce((acc, q) => acc + (q.citations?.length || 0), 0);
+    if (isStreaming) {
+      return historical + verifiedCitations.length;
     }
-  };
+    if (historical === 0) {
+      return verifiedCitations.length;
+    }
+    return historical;
+  }, [sessionQueryHistory, verifiedCitations, isStreaming]);
 
   // Submit Multi-Target Query to Groq SSE Streaming Engine
   const handleSubmitQuery = async () => {
     if (!query.trim() || isStreaming) return;
 
+    const submittedQuery = query.trim();
     setIsStreaming(true);
     setSynthesisText('');
     setVerifiedCitations([]);
+    verifiedCitationsRef.current = [];
+    routeInfoRef.current = null;
     setActiveCitationIndex(null);
     setTelemetry(null);
     setRouteInfo(null);
@@ -295,20 +241,17 @@ export default function WorkspacePage() {
     abortControllerRef.current = new AbortController();
 
     let accumulatedText = '';
-    let finalCitations = [];
-    let finalTelemetry = null;
-    let finalRoute = null;
 
     await streamContractQuery({
-      query,
+      query: submittedQuery,
       documentId: activeViewerDocId || selectedDocIds[0] || null,
       documentIds: selectedDocIds,
-      forceFrontier: operationalMode === 'FRONTIER_ONLY',
+      forceFrontier: (getStoredMode() || operationalMode) === 'FRONTIER_ONLY',
       topK: 5,
       signal: abortControllerRef.current.signal,
       onRoute: (routeData) => {
-        finalRoute = routeData;
         setRouteInfo(routeData);
+        routeInfoRef.current = routeData;
       },
       onWorkerStatus: (statusData) => {
         setWorkerStatuses((prev) => ({
@@ -319,72 +262,92 @@ export default function WorkspacePage() {
       onCitation: (citation) => {
         setVerifiedCitations((prev) => {
           const cIndex = citation.ref_index || citation.citation_index;
-          const exists = prev.some((c) => (c.citation_index || c.ref_index) === cIndex);
-          if (exists) return prev;
-          const formatted = {
-            ...citation,
-            citation_index: cIndex,
-            citationIndex: cIndex,
-            page_number: citation.page_number || 1,
-            chunk_id: citation.citation_id || citation.chunk_id || `ref-${cIndex}`,
-            extracted_claim: citation.text_snippet || citation.extracted_claim || '',
-            status: citation.status || 'VERIFIED',
-            confidence: citation.confidence !== undefined ? citation.confidence : 0.9,
-            bounding_box: citation.bounding_box || {},
-          };
-          finalCitations = [...finalCitations, formatted];
-          return [...prev, formatted];
+          const exists = prev.some(
+            (c) => (c.ref_index || c.citation_index) === cIndex && c.document_id === citation.document_id
+          );
+          const next = exists ? prev : [...prev, citation];
+          verifiedCitationsRef.current = next;
+          return next;
         });
       },
-      onMetadata: (metadata) => {
-        if (metadata.chunks && Array.isArray(metadata.chunks)) {
-          setChunks((prev) => {
-            const newMap = new Map();
-            prev.forEach((c) => newMap.set(c.id || c.chunk_id, c));
-            metadata.chunks.forEach((c) => {
-              const id = c.chunk_id || c.id;
-              newMap.set(id, {
-                ...c,
-                id,
-              });
-            });
-            return Array.from(newMap.values());
-          });
-        }
-      },
-      onDelta: (deltaText) => {
-        accumulatedText += deltaText;
+      onDelta: (chunk) => {
+        accumulatedText += chunk;
         setSynthesisText(accumulatedText);
       },
-      onVerification: (citations) => {
-        if (citations && citations.length > 0) {
-          finalCitations = citations;
-          setVerifiedCitations(citations);
-        }
+      onVerification: (verificationList) => {
+        setVerifiedCitations((prev) => {
+          const merged = [...prev];
+          verificationList.forEach((v) => {
+            const vIndex = v.ref_index || v.citation_index;
+            const idx = merged.findIndex(
+              (c) => (c.ref_index || c.citation_index) === vIndex
+            );
+            if (idx >= 0) {
+              merged[idx] = { ...merged[idx], ...v };
+            } else {
+              merged.push(v);
+            }
+          });
+          verifiedCitationsRef.current = merged;
+          return merged;
+        });
       },
       onTelemetry: (telemetryData) => {
-        finalTelemetry = telemetryData;
         setTelemetry(telemetryData);
       },
       onError: (err) => {
         setSynthesisText(
-          (prev) => prev + `\n\n[STREAM ERROR: ${err.message || 'Connection lost'}]`
+          (prev) => prev + `\n\n[STREAM ERROR]: ${err.message || 'Connection lost'}`
         );
-        setIsStreaming(false);
+        const partial = verifiedCitationsRef.current || [];
+        if (partial.length > 0) {
+          setSessionQueryHistory((prev) => {
+            const updated = [
+              ...prev,
+              {
+                id: `q-${Date.now()}`,
+                query: submittedQuery,
+                timestamp: Date.now(),
+                route: routeInfoRef.current?.route || 'SYSTEM_2_FRONTIER',
+                citations: partial.map((c) => ({ ...c, query: submittedQuery })),
+              },
+            ];
+            try {
+              if (typeof window !== 'undefined' && window.sessionStorage) {
+                window.sessionStorage.setItem('audit_copilot_citation_history', JSON.stringify(updated));
+              }
+            } catch (_err) {
+              // Ignore storage quota errors
+            }
+            return updated;
+          });
+        }
       },
       onDone: () => {
         setIsStreaming(false);
-        // Record in audit history
-        const newRecord = {
-          query,
-          synthesis: accumulatedText,
-          citations: finalCitations,
-          telemetry: finalTelemetry,
-          routeInfo: finalRoute,
-          timestamp: new Date().toISOString(),
-        };
-        setAuditHistory((prev) => [newRecord, ...prev]);
-        setSelectedHistoryIndex(0);
+        const finalCitations = verifiedCitationsRef.current || [];
+        if (finalCitations.length > 0) {
+          setSessionQueryHistory((prev) => {
+            const updated = [
+              ...prev,
+              {
+                id: `q-${Date.now()}`,
+                query: submittedQuery,
+                timestamp: Date.now(),
+                route: routeInfoRef.current?.route || 'SYSTEM_2_FRONTIER',
+                citations: finalCitations.map((c) => ({ ...c, query: submittedQuery })),
+              },
+            ];
+            try {
+              if (typeof window !== 'undefined' && window.sessionStorage) {
+                window.sessionStorage.setItem('audit_copilot_citation_history', JSON.stringify(updated));
+              }
+            } catch (_err) {
+              // Ignore storage quota errors
+            }
+            return updated;
+          });
+        }
       },
     });
   };
@@ -392,49 +355,25 @@ export default function WorkspacePage() {
   const handleCancelStream = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
+      setIsStreaming(false);
     }
-    setIsStreaming(false);
   };
 
-  const handleSelectHistory = (index) => {
-    const item = auditHistory[index];
-    if (!item) return;
-
-    setSelectedHistoryIndex(index);
-    setQuery(item.query);
-    setSynthesisText(item.synthesis);
-    setVerifiedCitations(item.citations || []);
-    setTelemetry(item.telemetry || null);
-    setRouteInfo(item.routeInfo || null);
-    setActiveCitationIndex(null);
-  };
 
   return (
-    <div className="h-full flex flex-col bg-zinc-950 text-zinc-100 font-sans select-none overflow-hidden">
-      {/* Workspace Header Toolbar */}
-      <div className="min-h-11 px-4 py-1.5 border-b border-zinc-800 bg-zinc-900 flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-1.5 text-xs font-mono text-zinc-400">
-            <Layers className="w-3.5 h-3.5 text-zinc-500" />
-            <span className="text-zinc-200 uppercase font-semibold">Workspace</span>
+    <div className="h-full flex flex-col bg-zinc-950 text-zinc-100 overflow-hidden font-sans">
+      {/* Top Application Sub-Bar: Operational Mode & Multi-Doc Badges */}
+      <div className="h-12 border-b border-zinc-800 bg-zinc-900/60 px-4 flex items-center justify-between flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-xs font-mono">
+            <span className="text-zinc-200 font-semibold tracking-wider">WORKSPACE</span>
             <span className="text-zinc-600">/</span>
-            <span className="text-zinc-400">Audit & Citation Synthesis</span>
+            <span className="text-zinc-400 hidden md:inline">Audit & Citation Synthesis</span>
           </div>
-
-          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-semibold tracking-wide flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-            DUAL-SYSTEM RAG ACTIVE
-          </span>
-
-          <ModeToggle
-            mode={operationalMode}
-            onChange={(newMode) => setOperationalMode(newMode)}
-            disabled={isStreaming}
-          />
         </div>
 
-        {/* Multi-Document Selector Dock & Active Viewer Dropdown */}
-        <div className="flex items-center gap-3 font-mono text-xs flex-wrap">
+        {/* Multi-Document Selector Dock */}
+        <div className="flex items-center gap-2 sm:gap-3 font-mono text-xs flex-wrap">
           <DocumentSelectorDock
             documents={documents}
             selectedDocIds={selectedDocIds}
@@ -445,25 +384,6 @@ export default function WorkspacePage() {
             maxDocuments={8}
             disabled={isStreaming}
           />
-
-          <div className="flex items-center gap-1.5 text-zinc-400">
-            <span className="text-zinc-500 uppercase text-[10px]">VIEWER:</span>
-            <div className="relative">
-              <select
-                value={activeViewerDocId}
-                onChange={handleSelectDocument}
-                className="appearance-none bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1 pr-7 text-xs font-mono text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-400 max-w-[170px] truncate cursor-pointer"
-              >
-                {!activeViewerDocId && <option value="">-- No Document Selected --</option>}
-                {documents.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.title} ({d.page_count}p)
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="w-3.5 h-3.5 absolute right-2 top-2 text-zinc-500 pointer-events-none" />
-            </div>
-          </div>
 
           {documents.length === 0 && (
             <button
@@ -477,21 +397,10 @@ export default function WorkspacePage() {
         </div>
       </div>
 
-      {/* Responsive Segmented Control Bar (Visible on compact viewports < 1280px) */}
+      {/* Responsive Segmented Control Bar (Visible on compact viewports < 1024px) */}
       {isCompact && (
-        <div className="h-10 px-3 sm:px-4 border-b border-zinc-800 bg-zinc-900/90 flex items-center justify-between text-xs font-mono">
+        <div className="h-10 px-3 sm:px-4 border-b border-zinc-800 bg-zinc-900/90 flex items-center justify-between text-xs font-mono flex-shrink-0">
           <div className="flex items-center gap-1 p-0.5 bg-zinc-950 border border-zinc-800 rounded">
-            <button
-              type="button"
-              onClick={() => setCompactTab('viewer')}
-              className={`px-2.5 py-1 rounded text-[11px] font-mono transition-colors ${
-                compactTab === 'viewer'
-                  ? 'bg-zinc-800 text-zinc-100 font-semibold shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              [1] DOCUMENT VIEWER
-            </button>
             <button
               type="button"
               onClick={() => setCompactTab('copilot')}
@@ -501,7 +410,7 @@ export default function WorkspacePage() {
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
-              [2] AUDIT COPILOT
+              [1] AUDIT COPILOT
             </button>
             <button
               type="button"
@@ -512,144 +421,104 @@ export default function WorkspacePage() {
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
-              [3] CITATIONS ({verifiedCitations.length})
+              [2] CITATIONS ({totalCitationsCount})
             </button>
-          </div>
-
-          <div className="text-[11px] text-zinc-400 truncate max-w-[200px]">
-            {selectedDocument ? selectedDocument.title : 'No Document'}
           </div>
         </div>
       )}
 
-      {/* Main Split Layout: Left PDF Viewer | Right Copilot Console */}
-      <div className="flex-1 flex min-h-0 overflow-hidden">
-        {/* Left Pane: Interactive Document Canvas Viewer */}
-        {(!isCompact || compactTab === 'viewer') && (
-          <div
-            className={`h-full border-r border-zinc-800 bg-zinc-950 overflow-hidden flex flex-col ${
-              isCompact ? 'flex-1' : selectedDocIds.length >= 2 && docA && docB ? 'w-[62%] min-w-[560px]' : 'w-[55%] min-w-[500px]'
-            }`}
-          >
-            {selectedDocIds.length >= 2 && docA && docB ? (
-              <DualPDFViewer
-                documentA={docA}
-                documentB={docB}
-                activeCitation={activeCitation}
-                citations={verifiedCitations}
-                boundingBoxes={chunks}
-                onSelectBox={handleSelectBox}
-                isCompact={isCompact}
-              />
-            ) : (
-              <PDFViewer
-                fileUrl={selectedDocument?.file || (selectedDocument?.file_path ? `/media/${selectedDocument.file_path}` : null)}
-                activePage={activePage}
-                onPageChange={(newPage) => setActivePage(newPage)}
-                boundingBoxes={chunks}
-                activeBoxId={activeBoxId}
-                scale={zoomScale}
-                onZoomChange={(newScale) => setZoomScale(newScale)}
-                onSelectBox={handleSelectBox}
-              />
-            )}
-          </div>
-        )}
+      {/* Main Full-Width Chat Fit Console */}
+      <div className="flex-1 flex flex-col bg-zinc-950 overflow-hidden min-h-0">
+        {/* Desktop Subheader / Tabs */}
+        {!isCompact && (
+          <div className="h-10 px-4 border-b border-zinc-800 bg-zinc-900/60 flex items-center justify-between text-xs font-mono">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveTab('synthesis')}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors ${
+                  activeTab === 'synthesis'
+                    ? 'bg-zinc-800 text-zinc-100 font-semibold'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <Terminal className="w-3.5 h-3.5 text-emerald-400" />
+                <span>QUERY STREAM</span>
+              </button>
 
-        {/* Right Pane: Real-Time SSE Audit Copilot Console */}
-        {(!isCompact || compactTab === 'copilot' || compactTab === 'citations') && (
-          <div
-            className={`h-full flex flex-col bg-zinc-950 overflow-hidden flex-1 ${
-              isCompact && compactTab === 'viewer' ? 'hidden' : ''
-            }`}
-          >
-            {/* Desktop Subheader / Tabs */}
-            {!isCompact && (
-              <div className="h-10 px-4 border-b border-zinc-800 bg-zinc-900/60 flex items-center justify-between text-xs font-mono">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('synthesis')}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors ${
-                      activeTab === 'synthesis'
-                        ? 'bg-zinc-800 text-zinc-100 font-semibold'
-                        : 'text-zinc-400 hover:text-zinc-200'
-                    }`}
-                  >
-                    <Terminal className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>QUERY STREAM</span>
-                  </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('citations')}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors ${
+                  activeTab === 'citations'
+                    ? 'bg-zinc-800 text-zinc-100 font-semibold'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <ListFilter className="w-3.5 h-3.5 text-amber-400" />
+                <span>CITATIONS ({totalCitationsCount})</span>
+              </button>
+            </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('citations')}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors ${
-                      activeTab === 'citations'
-                        ? 'bg-zinc-800 text-zinc-100 font-semibold'
-                        : 'text-zinc-400 hover:text-zinc-200'
-                    }`}
-                  >
-                    <ListFilter className="w-3.5 h-3.5 text-amber-400" />
-                    <span>CITATIONS ({verifiedCitations.length})</span>
-                  </button>
-                </div>
-
-                <div className="text-[10px] text-zinc-500">
-                  {isStreaming ? (
-                    <span className="text-emerald-400 animate-pulse font-semibold">STREAMING ACTIVE</span>
-                  ) : (
-                    <span>IDLE</span>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Tab Content */}
-            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-              {(!isCompact ? activeTab === 'synthesis' : compactTab === 'copilot') ? (
-                <SynthesisView
-                  text={synthesisText}
-                  isStreaming={isStreaming}
-                  citations={verifiedCitations}
-                  activeCitationIndex={activeCitationIndex}
-                  onSelectCitation={handleSelectCitation}
-                  telemetry={telemetry}
-                  routeInfo={routeInfo}
-                  documentMap={documentMap}
-                />
+            <div className="text-[10px] text-zinc-500">
+              {isStreaming ? (
+                <span className="text-emerald-400 animate-pulse font-semibold">STREAMING ACTIVE</span>
               ) : (
-                <div className="flex-1 overflow-y-auto">
-                  <CitationInspector
-                    citations={verifiedCitations}
-                    activeCitationIndex={activeCitationIndex}
-                    onSelectCitation={handleSelectCitation}
-                  />
-                </div>
-              )}
-
-              {/* Session Audit History (Visible in copilot view) */}
-              {(!isCompact || compactTab === 'copilot') && (
-                <AuditAuditTrail
-                  history={auditHistory}
-                  currentIndex={selectedHistoryIndex}
-                  onSelectHistory={handleSelectHistory}
-                />
-              )}
-
-              {/* Interactive Query Input Toolbar (Visible in copilot view) */}
-              {(!isCompact || compactTab === 'copilot') && (
-                <AuditQueryInput
-                  query={query}
-                  onQueryChange={setQuery}
-                  onSubmit={handleSubmitQuery}
-                  isStreaming={isStreaming}
-                  onCancel={handleCancelStream}
-                  disabled={selectedDocIds.length === 0}
-                />
+                <span>IDLE</span>
               )}
             </div>
           </div>
         )}
+
+        {/* Tab Content */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+          {(!isCompact ? activeTab === 'synthesis' : compactTab === 'copilot') && (
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              <SynthesisView
+                text={synthesisText}
+                isStreaming={isStreaming}
+                citations={verifiedCitations}
+                activeCitationIndex={activeCitationIndex}
+                onSelectCitation={handleSelectCitation}
+                telemetry={telemetry}
+                routeInfo={routeInfo}
+                documentMap={documentMap}
+                showGroundedSources={false}
+              />
+            </div>
+          )}
+
+          <div
+            className={`flex-1 overflow-y-auto ${
+              (!isCompact ? activeTab === 'citations' : compactTab === 'citations') ? '' : 'hidden'
+            }`}
+          >
+            <CitationInspector
+              citations={verifiedCitations}
+              sessionQueryHistory={sessionQueryHistory}
+              activeCitationIndex={activeCitationIndex}
+              onSelectCitation={handleSelectCitation}
+              onClearHistory={handleClearCitationHistory}
+              query={query}
+              documentMap={documentMap}
+              activeDocumentTitle={documents.find((d) => d.id === selectedDocIds[0])?.title || ''}
+              isStreaming={isStreaming}
+              isVisible={(!isCompact ? activeTab === 'citations' : compactTab === 'citations')}
+            />
+          </div>
+
+          {/* Interactive Query Input Toolbar (Visible in copilot view) */}
+          {(!isCompact || compactTab === 'copilot') && (
+            <AuditQueryInput
+              query={query}
+              onQueryChange={setQuery}
+              onSubmit={handleSubmitQuery}
+              isStreaming={isStreaming}
+              onCancel={handleCancelStream}
+              disabled={selectedDocIds.length === 0}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

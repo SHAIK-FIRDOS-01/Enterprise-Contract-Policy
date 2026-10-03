@@ -6,14 +6,36 @@ import {
   RefreshCw,
   Download,
   ShieldCheck,
+  FileText,
 } from 'lucide-react';
-import { fetchBenchmarkSummary, calculateRoiEconomics } from '../../services/analytics';
+import { fetchBenchmarkSummary } from '../../services/analytics';
 import api from '../../services/api';
 import MetricStatCard from '../../components/telemetry/MetricStatCard';
 import PipelineLatencyBreakdown from '../../components/telemetry/PipelineLatencyBreakdown';
 import TokenCostAnalytics from '../../components/telemetry/TokenCostAnalytics';
-import DualSystemRoiCard from '../../components/telemetry/DualSystemRoiCard';
 import ComparativeRoiMatrix from '../../components/telemetry/ComparativeRoiMatrix';
+import ModeToggle from '../../components/workspace/ModeToggle';
+
+const getStoredMode = () => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage && typeof window.localStorage.getItem === 'function') {
+      return window.localStorage.getItem('operational_mode') || 'DUAL_SYSTEM';
+    }
+  } catch {
+    // Fallback for environments where localStorage is restricted
+  }
+  return 'DUAL_SYSTEM';
+};
+
+const setStoredMode = (mode) => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage && typeof window.localStorage.setItem === 'function') {
+      window.localStorage.setItem('operational_mode', mode);
+    }
+  } catch {
+    // Fallback for environments where localStorage is restricted
+  }
+};
 
 export default function TelemetryPage() {
   const [benchmarkData, setBenchmarkData] = useState(null);
@@ -21,6 +43,13 @@ export default function TelemetryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const autoRefreshTimerRef = useRef(null);
+
+  const [operationalMode, setOperationalMode] = useState(getStoredMode);
+
+  const handleModeChange = (newMode) => {
+    setOperationalMode(newMode);
+    setStoredMode(newMode);
+  };
 
   const loadMetrics = useCallback(async () => {
     try {
@@ -92,14 +121,6 @@ export default function TelemetryPage() {
   const totalCostUsd = Number(totals.total_cost_usd || 0.0);
   const successRatePct = Math.round((health.overall_success_rate ?? 1.0) * 100);
 
-  const llmOps = operationsBreakdown.LLM_SYNTHESIS?.count || 0;
-
-  const economics = calculateRoiEconomics({
-    totalDocuments: Math.max(documentCount, 1),
-    totalQueries: Math.max(llmOps, totalOps > 0 ? totalOps : 1),
-    totalCostUsd: totalCostUsd,
-  });
-
   return (
     <div className="h-full flex flex-col bg-zinc-950 text-zinc-100 font-sans overflow-y-auto select-none">
       {/* Telemetry Header */}
@@ -116,7 +137,18 @@ export default function TelemetryPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 font-mono text-xs">
+        <div className="flex items-center gap-2.5 font-mono text-xs flex-wrap">
+          {/* Operational Mode Toggle for Benchmarking */}
+          <div className="flex items-center gap-1.5 mr-1">
+            <span className="text-zinc-500 text-[10px] uppercase tracking-wider hidden lg:inline font-semibold">
+              ROUTING:
+            </span>
+            <ModeToggle
+              mode={operationalMode}
+              onChange={handleModeChange}
+            />
+          </div>
+
           {/* Auto Refresh Toggle */}
           <button
             type="button"
@@ -160,7 +192,15 @@ export default function TelemetryPage() {
       {/* Main Content Area */}
       <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
         {/* Metric Summary Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <MetricStatCard
+            label="DOCUMENT CORPUS"
+            value={documentCount.toLocaleString()}
+            subtext={`${documentCount} active ${documentCount === 1 ? 'document' : 'documents'} in scope`}
+            indicatorColor="cyan"
+            icon={FileText}
+          />
+
           <MetricStatCard
             label="PIPELINE INVOCATIONS"
             value={totalOps.toLocaleString()}
@@ -172,7 +212,7 @@ export default function TelemetryPage() {
           <MetricStatCard
             label="TOKEN EXPENDITURE"
             value={totalTokens.toLocaleString()}
-            subtext="Groq LPUs + Local 384-dim CPU"
+            subtext="Audit prompt & completion tokens"
             indicatorColor="cyan"
             icon={Cpu}
           />
@@ -180,7 +220,7 @@ export default function TelemetryPage() {
           <MetricStatCard
             label="ESTIMATED RUN COST"
             value={`$${totalCostUsd.toFixed(5)}`}
-            subtext="$0.0006 / 1k tokens benchmark"
+            subtext="Actual model consumption"
             indicatorColor="emerald"
             icon={DollarSign}
           />
@@ -188,12 +228,12 @@ export default function TelemetryPage() {
           <MetricStatCard
             label="HEALTH & CITATION GATE"
             value={`${successRatePct}%`}
-            subtext="Zero-Hallucination Threshold"
+            subtext={totalOps > 0 ? `${health.successful_operations || 0}/${totalOps} operations verified` : 'Zero-error threshold'}
             indicatorColor={successRatePct >= 95 ? 'emerald' : 'amber'}
             icon={ShieldCheck}
           />
         </div>
- 
+
         {/* A/B Comparative Telemetry & Concurrency ROI Matrix */}
         <ComparativeRoiMatrix />
 
@@ -204,11 +244,6 @@ export default function TelemetryPage() {
         <TokenCostAnalytics
           totals={totals}
           operationsBreakdown={operationsBreakdown}
-        />
-
-        {/* Dual-System Comparative ROI Economics */}
-        <DualSystemRoiCard
-          economics={economics}
         />
       </div>
     </div>
